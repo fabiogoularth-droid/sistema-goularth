@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 480px; margin: 0 auto;">
+    <h2>🔑 Entrar</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>CPF</label>
+            <input type="text" name="cpf" placeholder="000.000.000-00" value="{{ cpf or '' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Senha</label>
+            <input type="password" name="senha" required>
+        </div>
+        <button type="submit" class="btn btn-dourado" style="width: 100%;">Entrar</button>
+    </form>
+    <p class="text-center mt-20">
+        <a href="{{ url_for('cadastro') }}">Ainda não tem cadastro? Clique aqui</a>
+    </p>
+</div>
+{% endblock %}

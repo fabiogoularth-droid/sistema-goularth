@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .resultado-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+        flex-wrap: wrap;
+    }
+    .resultado-row .campo {
+        flex: 1;
+        min-width: 80px;
+    }
+    .resultado-row .campo input {
+        width: 100%;
+        padding: 6px 10px;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    .resultado-row .campo input:focus {
+        border-color: #C9980E;
+        outline: none;
+    }
+    .resultado-row .campo .label {
+        font-size: 12px;
+        color: #888;
+        display: block;
+        margin-bottom: 2px;
+        font-weight: bold;
+    }
+    .btn-salvar {
+        background: #28a745;
+        color: #fff;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .btn-salvar:hover {
+        background: #1e7e34;
+    }
+    .btn-excluir {
+        background: #8B4226;
+        color: #fff;
+        border: none;
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .btn-excluir:hover {
+        background: #6b331c;
+    }
+    .salvo {
+        color: #28a745;
+        font-weight: bold;
+    }
+    .pendente {
+        color: #ffc107;
+        font-weight: bold;
+    }
+    .resultado-header {
+        background: #2B3328;
+        color: #FAF6EC;
+        padding: 10px;
+        border-radius: 6px;
+        font-weight: bold;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+    .resultado-header .campo {
+        flex: 1;
+        min-width: 80px;
+    }
+    @media (max-width: 768px) {
+        .resultado-row, .resultado-header {
+            flex-direction: column;
+        }
+        .resultado-row .campo {
+            min-width: 100%;
+        }
+    }
+</style>
+
+<div class="card">
+    <h2>📝 Resultado Manual - {{ etapa.nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Total: {{ dados|length }} inscrições</span>
+    </div>
+    
+    <div style="margin-bottom: 15px; padding: 10px; background: #f8f4ea; border-radius: 6px; border-left: 4px solid #C9980E;">
+        <p style="margin: 0; font-size: 13px; color: #888;">
+            💡 <strong>Instruções:</strong>
+            {% if etapa.modalidade == 'FIBRA' %}
+                Preencha <strong>POSIÇÃO</strong> (classificação), <strong>RES. PARCIAL</strong> e <strong>RES. FINAL</strong>.
+            {% else %}
+                Preencha <strong>POSIÇÃO</strong> (classificação) e <strong>RES. FINAL</strong>.
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="resultado-header">
+        <div class="campo" style="flex: 0.5;">POSIÇÃO</div>
+        <div class="campo" style="flex: 0.5;">
+            {% if etapa.modalidade == 'FIBRA' %}
+                ESTACA
+            {% else %}
+                ORDEM
+            {% endif %}
+        </div>
+        <div class="campo" style="flex: 1.5;">PÁSSARO</div>
+        <div class="campo" style="flex: 1;">ANILHA</div>
+        <div class="campo" style="flex: 1;">PROPRIETÁRIO</div>
+        {% if etapa.modalidade == 'FIBRA' %}
+            <div class="campo" style="flex: 0.8;">RES. PARCIAL</div>
+        {% endif %}
+        <div class="campo" style="flex: 0.8;">RES. FINAL</div>
+        <div class="campo" style="flex: 0.5;">STATUS</div>
+        <div class="campo" style="flex: 0.5;">AÇÃO</div>
+    </div>
+    
+    {% for item in dados %}
+        <form method="POST" action="{{ url_for('admin_resultado_manual_salvar') }}" class="resultado-row">
+            <input type="hidden" name="inscricao_id" value="{{ item.inscricao_id }}">
+            
+            <div class="campo" style="flex: 0.5;">
+                <input type="number" name="posicao" 
+                       value="{{ item.resultado.classificacao if item.resultado else '' }}" 
+                       placeholder="1" min="1" required>
+            </div>
+            
+            <div class="campo" style="flex: 0.5;">
+                <input type="text" name="ordem_display" 
+                       value="{{ item.ordem if item.ordem else '' }}" 
+                       placeholder="-" readonly style="background: #f0f0f0; cursor: not-allowed; text-align: center;">
+            </div>
+            
+            <div class="campo" style="flex: 1.5;">
+                <strong>{{ item.passaro_nome }}</strong>
+            </div>
+            
+            <div class="campo" style="flex: 1;">
+                <code style="background: #eee; padding: 2px 8px; border-radius: 4px; font-size: 12px;">{{ item.codigo_ave }}</code>
+            </div>
+            
+            <div class="campo" style="flex: 1;">
+                {{ item.socio_nome }}
+            </div>
+            
+            {% if etapa.modalidade == 'FIBRA' %}
+                <div class="campo" style="flex: 0.8;">
+                    <input type="text" name="tempo_parcial" 
+                           value="{{ item.resultado.nota1 if item.resultado and item.resultado.nota1 else '' }}" 
+                           placeholder="00:00.00">
+                </div>
+            {% endif %}
+            
+            <div class="campo" style="flex: 0.8;">
+                <input type="text" name="tempo_final" 
+                       value="{% if item.resultado and item.resultado.nota1 and etapa.modalidade == 'CANTO_LIVRE' %}{{ item.resultado.nota1 }}{% elif item.resultado and item.resultado.nota1 and etapa.modalidade == 'FIBRA' %}{{ item.resultado.nota2 }}{% else %}{% endif %}"
+                       placeholder="00:00.00" required>
+            </div>
+            
+            <div class="campo" style="flex: 0.5; text-align: center;">
+                {% if item.resultado %}
+                    <span class="salvo">✅ Salvo</span>
+                {% else %}
+                    <span class="pendente">⏳ Pendente</span>
+                {% endif %}
+            </div>
+            
+            <div class="campo" style="flex: 0.5; display: flex; gap: 5px;">
+                <button type="submit" class="btn-salvar" style="font-size: 12px; padding: 4px 12px;">💾 Salvar</button>
+                {% if item.resultado %}
+                    <form method="POST" action="{{ url_for('admin_resultado_manual_excluir', resultado_id=item.resultado.id) }}" style="display: inline;">
+                        <button type="submit" class="btn-excluir" style="font-size: 12px; padding: 4px 12px;" onclick="return confirm('Tem certeza que deseja excluir este resultado?')">🗑️</button>
+                    </form>
+                {% endif %}
+            </div>
+        </form>
+    {% endfor %}
+    
+    {% if not dados %}
+        <p class="text-muted text-center">Nenhuma inscrição nesta etapa.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('admin_ver_etapa', etapa_id=etapa.id) }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

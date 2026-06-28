@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>🏆 {{ torneio.nome }}</h2>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('admin_nova_etapa', torneio_id=torneio.id) }}" class="btn btn-dourado">+ Nova Etapa</a>
+        <a href="{{ url_for('admin_editar_torneio', torneio_id=torneio.id) }}" class="btn" style="background: #17a2b8; color: #fff;">✏️ Editar Torneio</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Etapas</h2>
+    {% if etapas %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Modalidade</th>
+                    <th>Categoria</th>
+                    <th>Data</th>
+                    <th>Limite CPF</th>
+                    <th>Limite Total</th>
+                    <th>Inscrições</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in etapas %}
+                <tr>
+                    <td><strong>{{ e.nome }}</strong></td>
+                    <td><span class="tag tag-fibra">{{ nomes_modalidade[e.modalidade] }}</span></td>
+                    <td>
+                        {% if e.categoria == 'FILHOTE' %}
+                            <span class="tag tag-filhote">Filhote</span>
+                        {% else %}
+                            <span class="tag tag-adulto">Adulto</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ e.data_etapa }}</td>
+                    <td>{{ e.limite_por_cpf or 'Livre' }}</td>
+                    <td>{{ e.limite_inscricoes or '∞' }}</td>
+                    <td>{{ e.inscricoes_count or 0 }}</td>
+                    <td>
+                        {% if e.inscricoes_abertas %}
+                            <span style="color: green;">✅ Abertas</span>
+                        {% else %}
+                            <span style="color: red;">🔒 Fechadas</span>
+                        {% endif %}
+                        {% if e.ordem_sorteada %}
+                            <span class="tag" style="background: #C9980E; color: #fff;">🎲 Sorteado</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('admin_ver_etapa', etapa_id=e.id) }}" class="btn btn-sm btn-outline">Gerenciar</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma etapa criada ainda.</p>
+        <div class="text-center mt-20">
+            <a href="{{ url_for('admin_nova_etapa', torneio_id=torneio.id) }}" class="btn btn-dourado">Criar primeira etapa</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

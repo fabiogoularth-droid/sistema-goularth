@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>🏆 {{ torneio_nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <span class="tag tag-fibra">{{ categoria }}</span>
+        <span class="text-muted">📅 {{ data_etapa }}</span>
+        <span class="text-muted">Total: {{ resultados|length }} pássaros</span>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Classificação Final</h2>
+    {% if resultados %}
+        <table>
+            <thead>
+                <tr>
+                    <th>🏅</th>
+                    <th>Posição</th>
+                    <th>Pássaro</th>
+                    <th>Anilha</th>
+                    <th>Proprietário</th>
+                    <th>Tempo</th>
+                    <th>Pontos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resultados %}
+                <tr>
+                    <td>
+                        {% if r.posicao == 1 %}
+                            <span style="font-size: 24px;">🥇</span>
+                        {% elif r.posicao == 2 %}
+                            <span style="font-size: 24px;">🥈</span>
+                        {% elif r.posicao == 3 %}
+                            <span style="font-size: 24px;">🥉</span>
+                        {% else %}
+                            <strong>#{{ r.posicao }}</strong>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ r.posicao }}º</strong></td>
+                    <td><strong>{{ r.passaro_nome }}</strong></td>
+                    <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ r.anilha }}</code></td>
+                    <td>{{ r.proprietario }}</td>
+                    <td>{{ r.tempo }}</td>
+                    <td><strong style="color: #C9980E;">{{ r.pontos }}</strong></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhum resultado disponível.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('listar_resultados') }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

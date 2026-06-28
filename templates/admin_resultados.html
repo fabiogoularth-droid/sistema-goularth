@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>📤 Gerenciar Resultados Importados</h2>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('admin_importar_resultado') }}" class="btn btn-dourado">📝 Importar Texto</a>
+        <a href="{{ url_for('admin_upload_resultado') }}" class="btn" style="background: #1A6B30; color: #fff;">📤 Upload Arquivo</a>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Etapas Importadas</h2>
+    {% if etapas %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Torneio</th>
+                    <th>Categoria</th>
+                    <th>Data</th>
+                    <th>Inscritos</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in etapas %}
+                <tr>
+                    <td><strong>{{ e.torneio_nome }}</strong></td>
+                    <td><span class="tag tag-fibra">{{ e.categoria }}</span></td>
+                    <td>{{ e.data_etapa }}</td>
+                    <td>{{ e.total_inscritos }}</td>
+                    <td>
+                        <a href="{{ url_for('ver_resultado_etapa', torneio_nome=e.torneio_nome, data_etapa=e.data_etapa, categoria=e.categoria) }}" class="btn btn-sm btn-outline">Ver</a>
+                        <a href="{{ url_for('admin_editar_resultado', torneio_nome=e.torneio_nome, data_etapa=e.data_etapa, categoria=e.categoria) }}" class="btn btn-sm" style="background: #17a2b8; color: #fff;">✏️ Editar</a>
+                        <a href="{{ url_for('admin_exportar_inscritos', torneio_nome=e.torneio_nome, data_etapa=e.data_etapa, categoria=e.categoria) }}" class="btn btn-sm" style="background: #28a745; color: #fff;">📤 Excel</a>
+                        <form method="POST" action="{{ url_for('admin_excluir_etapa') }}" style="display: inline;">
+                            <input type="hidden" name="torneio_nome" value="{{ e.torneio_nome }}">
+                            <input type="hidden" name="data_etapa" value="{{ e.data_etapa }}">
+                            <input type="hidden" name="categoria" value="{{ e.categoria }}">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja excluir esta etapa?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma etapa importada ainda.</p>
+    {% endif %}
+</div>
+{% endblock %}

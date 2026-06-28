@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h2>📥 Importar Resultado de Etapa</h2>
+    <p class="text-muted">Cole os dados do resultado no formato abaixo</p>
+    
+    <div class="card" style="background: #f8f9fa; border-left: 4px solid #C9980E; font-size: 12px;">
+        <strong>Formato esperado:</strong>
+        <pre style="margin: 5px 0; white-space: pre-wrap;">
+POS | Pássaro | Anilha | Proprietário | Tempo | Pontos
+1 | MAESTRO | DM 0073 0030 2023 | CG | 03:49.30 | 30
+2 | GALOUCURA | OD 0284 0008 2023 | TAFFARI | 03:42.57 | 29
+        </pre>
+        <p class="text-muted">Separe as colunas com "|" (pipe)</p>
+    </div>
+    
+    <form method="POST">
+        <div class="form-group">
+            <label>Nome do Torneio *</label>
+            <input type="text" name="torneio_nome" placeholder="Ex: COPA ABCO ADULTO LIVRE" required>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Categoria *</label>
+                <input type="text" name="categoria" placeholder="Ex: ADULTO LIVRE, FILHOTE FIBRA" required>
+                <div class="hint">Ex: ADULTO LIVRE, FILHOTE FIBRA, ADULTO CANTO LIVRE</div>
+            </div>
+            <div class="form-group">
+                <label>Data da Etapa *</label>
+                <input type="date" name="data_etapa" required>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Dados do Resultado *</label>
+            <textarea name="dados" rows="20" placeholder="Cole aqui os dados do resultado...&#10;Ex:&#10;1 | MAESTRO | DM 0073 0030 2023 | CG | 03:49.30 | 30&#10;2 | GALOUCURA | OD 0284 0008 2023 | TAFFARI | 03:42.57 | 29" required></textarea>
+            <div class="hint">Cada linha deve ter: POS | Pássaro | Anilha | Proprietário | Tempo | Pontos</div>
+        </div>
+        
+        <button type="submit" class="btn btn-dourado" style="width: 100%;">Importar Resultado</button>
+    </form>
+    
+    <div class="text-center mt-20">
+        <a href="{{ url_for('admin_resultados') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+{% endblock %}

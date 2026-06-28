@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .ranking-header {
+        background: linear-gradient(135deg, #2B3328 0%, #14181B 100%);
+        padding: 30px 40px;
+        border-radius: 12px;
+        margin-bottom: 25px;
+        border-bottom: 4px solid #C9980E;
+    }
+    .ranking-header h2 {
+        color: #C9980E;
+        font-family: 'Georgia', serif;
+        font-size: 32px;
+        margin: 0;
+        border: none;
+    }
+    .ranking-header p {
+        color: #aaa;
+        margin-top: 8px;
+        font-size: 16px;
+    }
+    .ranking-stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 15px;
+        margin-bottom: 25px;
+    }
+    .stat-card {
+        background: #FAF6EC;
+        border-radius: 10px;
+        padding: 18px 20px;
+        text-align: center;
+        border: 1px solid #e0dcd0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .stat-card .number {
+        font-size: 28px;
+        font-weight: bold;
+        color: #C9980E;
+    }
+    .stat-card .label {
+        font-size: 13px;
+        color: #888;
+        margin-top: 4px;
+    }
+    .podium {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 20px;
+        padding: 30px 20px 20px;
+        margin-bottom: 30px;
+        background: linear-gradient(180deg, #f8f4ea 0%, #FAF6EC 100%);
+        border-radius: 12px;
+        border: 1px solid #e0dcd0;
+    }
+    .podium-item {
+        text-align: center;
+        padding: 15px 25px;
+        border-radius: 10px 10px 0 0;
+        min-width: 140px;
+        transition: transform 0.3s;
+    }
+    .podium-item:hover {
+        transform: scale(1.03);
+    }
+    .podium-item .medal {
+        font-size: 50px;
+        display: block;
+        margin-bottom: 5px;
+    }
+    .podium-item .name {
+        font-weight: bold;
+        font-size: 18px;
+        color: #14181B;
+    }
+    .podium-item .points {
+        font-size: 24px;
+        font-weight: bold;
+        color: #C9980E;
+    }
+    .podium-item .detail {
+        font-size: 12px;
+        color: #888;
+    }
+    .podium-1 {
+        background: linear-gradient(180deg, #ffd700 0%, #f0c000 100%);
+        border: 2px solid #d4a800;
+        min-height: 160px;
+        padding-top: 20px;
+    }
+    .podium-2 {
+        background: linear-gradient(180deg, #c0c0c0 0%, #a8a8a8 100%);
+        border: 2px solid #909090;
+        min-height: 130px;
+        padding-top: 20px;
+    }
+    .podium-3 {
+        background: linear-gradient(180deg, #cd7f32 0%, #b8692a 100%);
+        border: 2px solid #a05a22;
+        min-height: 100px;
+        padding-top: 20px;
+    }
+    .podium-item .subtitle {
+        font-size: 11px;
+        color: rgba(0,0,0,0.5);
+        margin-top: 2px;
+    }
+    .btn-categoria {
+        padding: 6px 16px;
+        border-radius: 20px;
+        border: 2px solid #C9980E;
+        background: transparent;
+        color: #2B3328;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 600;
+        font-size: 13px;
+        text-decoration: none;
+        display: inline-block;
+    }
+    .btn-categoria:hover, .btn-categoria.active {
+        background: #C9980E;
+        color: #FAF6EC;
+    }
+    .table-pontos {
+        font-weight: bold;
+        color: #C9980E;
+        font-size: 18px;
+    }
+    .medal-icon {
+        font-size: 28px;
+    }
+    .etapa-col {
+        text-align: center;
+        font-size: 13px;
+    }
+    .etapa-col .data {
+        font-size: 11px;
+        color: #888;
+    }
+    .etapa-col .pontos {
+        font-weight: bold;
+        color: #C9980E;
+        font-size: 15px;
+    }
+    .etapa-col .sem-pontos {
+        color: #ccc;
+        font-size: 12px;
+    }
+    .tempo-destaque {
+        color: #2B3328;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    @media (max-width: 768px) {
+        .ranking-stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .podium {
+            flex-direction: column;
+            align-items: center;
+        }
+        .podium-item {
+            min-width: 100%;
+            border-radius: 10px;
+            min-height: auto !important;
+        }
+        .ranking-header h2 {
+            font-size: 24px;
+        }
+        .etapa-col {
+            font-size: 11px;
+        }
+    }
+</style>
+
+<!-- HEADER -->
+<div class="ranking-header">
+    <h2>🏆 Ranking Geral do Campeonato</h2>
+    <p>Pontuação acumulada de todas as etapas — 1º lugar = 30 pontos, 30º lugar = 1 ponto</p>
+</div>
+
+<!-- ESTATÍSTICAS -->
+<div class="ranking-stats">
+    <div class="stat-card">
+        <div class="number">{{ ranking|length }}</div>
+        <div class="label">🐦 Pássaros ranqueados</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ categorias|length if categorias else 0 }}</div>
+        <div class="label">🏷️ Categorias</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ ranking[0].total_pontos if ranking else 0 }}</div>
+        <div class="label">🥇 Melhor pontuação</div>
+    </div>
+    <div class="stat-card">
+        <div class="number">{{ ranking|length if ranking else 0 }}</div>
+        <div class="label">🏆 Total de participantes</div>
+    </div>
+</div>
+
+<!-- FILTRO POR CATEGORIA -->
+<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 25px;">
+    <a href="{{ url_for('ranking_geral') }}" class="btn-categoria {% if not request.path.endswith('/ranking/') %}active{% endif %}">📊 Geral</a>
+    {% for cat in categorias %}
+        <a href="{{ url_for('ranking_categoria', categoria=cat) }}" class="btn-categoria">{{ cat }}</a>
+    {% endfor %}
+</div>
+
+<!-- PÓDIO DOS 3 PRIMEIROS -->
+{% if ranking and ranking|length >= 3 %}
+<div class="podium">
+    <div class="podium-item podium-2">
+        <span class="medal">🥈</span>
+        <div class="name">{{ ranking[1].passaro_nome }}</div>
+        <div class="points">{{ ranking[1].total_pontos }}</div>
+        <div class="detail">{{ ranking[1].proprietario }}</div>
+        <div class="subtitle">2º Lugar</div>
+    </div>
+    <div class="podium-item podium-1">
+        <span class="medal">🥇</span>
+        <div class="name">{{ ranking[0].passaro_nome }}</div>
+        <div class="points">{{ ranking[0].total_pontos }}</div>
+        <div class="detail">{{ ranking[0].proprietario }}</div>
+        <div class="subtitle">🏆 CAMPEÃO</div>
+    </div>
+    <div class="podium-item podium-3">
+        <span class="medal">🥉</span>
+        <div class="name">{{ ranking[2].passaro_nome }}</div>
+        <div class="points">{{ ranking[2].total_pontos }}</div>
+        <div class="detail">{{ ranking[2].proprietario }}</div>
+        <div class="subtitle">3º Lugar</div>
+    </div>
+</div>
+{% endif %}
+
+<!-- TABELA DO RANKING -->
+<div class="card" style="padding: 0; overflow: hidden;">
+    <div style="overflow-x: auto;">
+        <table style="width: 100%;">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">🏅</th>
+                    <th style="width: 50px; text-align: center;">Pos.</th>
+                    <th style="min-width: 120px;">Pássaro</th>
+                    <th style="min-width: 150px;">Anilha</th>
+                    <th style="min-width: 120px;">Proprietário</th>
+                    <th style="width: 100px; text-align: center;">Pontuação Geral</th>
+                    {% if ranking and ranking[0].etapas_datas %}
+                        {% for data in ranking[0].etapas_datas %}
+                            <th style="min-width: 80px; text-align: center; font-size: 12px;">
+                                Etapa<br>
+                                <span style="font-weight: normal; color: #888; font-size: 10px;">{{ data }}</span>
+                            </th>
+                        {% endfor %}
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in ranking %}
+                <tr style="{% if loop.index == 1 %}background: rgba(255,215,0,0.08);{% elif loop.index == 2 %}background: rgba(192,192,192,0.08);{% elif loop.index == 3 %}background: rgba(205,127,50,0.08);{% endif %}">
+                    <td style="text-align: center;">
+                        {% if loop.index == 1 %}
+                            <span class="medal-icon">🥇</span>
+                        {% elif loop.index == 2 %}
+                            <span class="medal-icon">🥈</span>
+                        {% elif loop.index == 3 %}
+                            <span class="medal-icon">🥉</span>
+                        {% else %}
+                            <span style="color: #999;">#{{ loop.index }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="text-align: center; font-weight: bold;">
+                        {{ loop.index }}º
+                    </td>
+                    <td><strong>{{ r.passaro_nome }}</strong></td>
+                    <td><code style="background: #f0f0f0; padding: 2px 8px; border-radius: 4px; font-size: 13px;">{{ r.anilha }}</code></td>
+                    <td>{{ r.proprietario }}</td>
+                    <td style="text-align: center;">
+                        <span class="table-pontos">{{ r.total_pontos }}</span>
+                    </td>
+                    {% if r.pontos_por_etapa %}
+                        {% for ponto in r.pontos_por_etapa %}
+                            <td style="text-align: center;">
+                                {% if ponto and ponto != '0' %}
+                                    <span class="pontos">{{ ponto }}</span>
+                                {% else %}
+                                    <span class="sem-pontos">—</span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if not ranking %}
+        <div style="padding: 40px; text-align: center; color: #888;">
+            <p style="font-size: 18px;">📊 Nenhum dado de ranking disponível</p>
+            <p class="text-muted">Importe os resultados das etapas para gerar o ranking.</p>
+        </div>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20" style="padding: 15px;">
+    <a href="{{ url_for('home') }}" class="btn btn-outline btn-sm">🏠 Voltar ao Início</a>
+    <a href="{{ url_for('listar_resultados') }}" class="btn btn-outline btn-sm">🏆 Ver Resultados</a>
+</div>
+
+<!-- RODAPÉ COM INFORMAÇÕES -->
+<div style="margin-top: 20px; padding: 15px; background: #f8f4ea; border-radius: 8px; border: 1px solid #e0dcd0; text-align: center;">
+    <p style="margin: 0; color: #888; font-size: 13px;">
+        ⚡ Ranking atualizado automaticamente a cada nova etapa importada.
+        {% if categorias %}
+            <br>📌 Categorias disponíveis: {{ categorias|join(', ') }}
+        {% endif %}
+    </p>
+</div>
+{% endblock %}

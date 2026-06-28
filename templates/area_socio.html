@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    /* ===== TABS ===== */
+    .tabs {
+        display: flex;
+        gap: 4px;
+        background: #2B3328;
+        border-radius: 8px 8px 0 0;
+        padding: 8px 12px 0 12px;
+        flex-wrap: wrap;
+    }
+    .tab-btn {
+        background: transparent;
+        border: none;
+        color: #aaa;
+        padding: 10px 20px;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        border-radius: 6px 6px 0 0;
+        transition: all 0.3s;
+        font-family: 'Segoe UI', sans-serif;
+    }
+    .tab-btn:hover {
+        color: #fff;
+        background: rgba(255,255,255,0.05);
+    }
+    .tab-btn.active {
+        color: #fff;
+        background: #C9980E;
+    }
+    .tab-content {
+        background: #FAF6EC;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .tab-pane {
+        display: none;
+    }
+    .tab-pane.active {
+        display: block;
+    }
+    .tab-pane h3 {
+        color: #2B3328;
+        border-bottom: 2px solid #C9980E;
+        padding-bottom: 10px;
+        margin-top: 0;
+        margin-bottom: 20px;
+    }
+    .categoria-group {
+        border: 2px solid #C9980E;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+        background: #fff;
+    }
+    .categoria-group h4 {
+        color: #2B3328;
+        border-bottom: 2px solid #C9980E;
+        padding-bottom: 8px;
+        margin-top: 0;
+    }
+    .btn-cancelar {
+        background: #8B4226;
+        color: #fff;
+        border: none;
+        padding: 4px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.3s;
+    }
+    .btn-cancelar:hover {
+        background: #6b331c;
+    }
+    .btn-cancelar-admin {
+        background: #B82018;
+        color: #fff;
+        border: none;
+        padding: 4px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.3s;
+    }
+    .btn-cancelar-admin:hover {
+        background: #8a1610;
+    }
+    .card-info {
+        background: #fff;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+    }
+    .badge-status {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+    .badge-pendente {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .badge-aprovado {
+        background: #d4edda;
+        color: #155724;
+    }
+    .badge-recusado {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .text-muted {
+        color: #888;
+        font-size: 14px;
+    }
+    .ordem-numero {
+        font-weight: bold;
+        color: #C9980E;
+        font-size: 16px;
+    }
+</style>
+
+<div class="card" style="padding-bottom: 0;">
+    <h2>👤 Minha Área</h2>
+    <p>Bem-vindo, <strong>{{ session.socio_nome }}</strong>!</p>
+</div>
+
+<!-- ===== TABS ===== -->
+<div class="tabs">
+    <button class="tab-btn active" data-tab="config">⚙️ Configurações</button>
+    <button class="tab-btn" data-tab="passaros">🐦 Meus Pássaros</button>
+    <button class="tab-btn" data-tab="inscricoes">📋 Minhas Inscrições</button>
+    <button class="tab-btn" data-tab="resultados">🏆 Meus Resultados</button>
+    <button class="tab-btn" data-tab="transferencias">🔄 Transferências</button>
+</div>
+
+<div class="tab-content">
+
+    <!-- ===== TAB 1 - CONFIGURAÇÕES ===== -->
+    <div class="tab-pane active" id="tab-config">
+        <h3>⚙️ Minhas Configurações</h3>
+        <div class="card-info">
+            <p><strong>Nome:</strong> {{ session.socio_nome }}</p>
+            <p><strong>CPF:</strong> {{ socio.cpf if socio else 'Não informado' }}</p>
+            <p><strong>Email:</strong> {{ socio.email if socio else 'Não informado' }}</p>
+            <p><strong>Clube:</strong> {{ socio.sigla_clube if socio else 'Não informado' }}</p>
+            <p><strong>Código de Sócio:</strong> {{ socio.codigo_socio if socio else 'Não informado' }}</p>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <a href="{{ url_for('editar_perfil') }}" class="btn btn-dourado">✏️ Editar Perfil</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger">🚪 Sair</a>
+        </div>
+    </div>
+
+    <!-- ===== TAB 2 - MEUS PÁSSAROS ===== -->
+    <div class="tab-pane" id="tab-passaros">
+        <h3>🐦 Meus Pássaros</h3>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+            <a href="{{ url_for('novo_passaro') }}" class="btn btn-dourado">+ Cadastrar Pássaro</a>
+            <a href="{{ url_for('transferir_passaro') }}" class="btn" style="background: #17a2b8; color: #fff;">🔄 Transferir Pássaro</a>
+        </div>
+        {% if passaros %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Anilha</th>
+                        <th>Categoria</th>
+                        <th>Cor</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in passaros %}
+                    <tr>
+                        <td><strong>{{ p.nome }}</strong></td>
+                        <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ p.codigo_ave }}</code></td>
+                        <td>
+                            {% if p.categoria == 'FILHOTE' %}
+                                <span class="tag tag-filhote">Filhote</span>
+                            {% elif p.categoria == 'ADULTO' %}
+                                <span class="tag tag-adulto">Adulto</span>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ p.cor or '—' }}</td>
+                        <td>
+                            <a href="{{ url_for('editar_passaro', passaro_id=p.id) }}" class="btn btn-sm" style="background: #17a2b8; color: #fff;">✏️ Editar</a>
+                            <a href="{{ url_for('transferir_passaro') }}?passaro={{ p.id }}" class="btn btn-sm" style="background: #6c757d; color: #fff;">🔄 Transferir</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted text-center">Você ainda não cadastrou nenhum pássaro.</p>
+            <div class="text-center mt-20">
+                <a href="{{ url_for('novo_passaro') }}" class="btn btn-dourado">Cadastrar meu primeiro pássaro</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- ===== TAB 3 - MINHAS INSCRIÇÕES ===== -->
+    <div class="tab-pane" id="tab-inscricoes">
+        <h3>📋 Minhas Inscrições</h3>
+        <div style="margin-bottom: 15px;">
+            <a href="{{ url_for('ver_torneio', torneio_id=1) }}" class="btn btn-dourado">+ Nova Inscrição</a>
+        </div>
+        
+        {% if inscricoes_agrupadas %}
+            {% for categoria, inscricoes in inscricoes_agrupadas.items() %}
+                <div class="categoria-group">
+                    <h4>🏷️ {{ categoria }}</h4>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Evento</th>
+                                <th>Anilha</th>
+                                <th>Pássaro</th>
+                                <th>Data</th>
+                                <th>Ordem / Estaca</th>
+                                <th>Pagamento</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ins in inscricoes %}
+                            <tr>
+                                <td>
+                                    <strong>{{ ins.etapa_nome }}</strong>
+                                    {% if ins.torneio_nome %}
+                                        <br><span class="text-muted">{{ ins.torneio_nome }}</span>
+                                    {% endif %}
+                                </td>
+                                <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ ins.codigo_ave }}</code></td>
+                                <td>{{ ins.passaro_nome }}</td>
+                                <td>{{ ins.data_etapa }}</td>
+                                <td>
+                                    {% if ins.ordem %}
+                                        {% if ins.modalidade == 'FIBRA' %}
+                                            <span class="ordem-numero">{{ ins.ordem }}</span>
+                                        {% else %}
+                                            <span class="ordem-numero">{{ ins.ordem }}º</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Aguardando sorteio</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if ins.pagamento_confirmado %}
+                                        <span style="color: green; font-weight: bold;">✅ Pago</span>
+                                    {% elif ins.pagamento_status == 'pendente' %}
+                                        <span style="color: orange;">⏳ Pendente</span>
+                                    {% else %}
+                                        <span style="color: red;">❌ Não pago</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <!-- BOTÃO CANCELAR PARA SÓCIO - SEMPRE VISÍVEL -->
+                                    <form method="POST" action="{{ url_for('cancelar_inscricao', inscricao_id=ins.inscricao_id) }}" style="display: inline-block;">
+                                        <button type="submit" class="btn-cancelar" onclick="return confirm('⚠️ Tem certeza que deseja CANCELAR esta inscrição?\n\nA ordem/estaca será liberada para outro pássaro.\n\nEsta ação não pode ser desfeita.')">
+                                            ❌ Cancelar
+                                        </button>
+                                    </form>
+                                    
+                                    <!-- BOTÃO CANCELAR PARA ADMIN - SEMPRE VISÍVEL -->
+                                    {% if session.admin_id %}
+                                        <form method="POST" action="{{ url_for('admin_cancelar_inscricao', inscricao_id=ins.inscricao_id) }}" style="display: inline-block;">
+                                            <button type="submit" class="btn-cancelar-admin" onclick="return confirm('⚠️ ADMIN: Tem certeza que deseja CANCELAR esta inscrição?\n\nA ordem/estaca será liberada para outro pássaro.\n\nEsta ação não pode ser desfeita.')">
+                                                🛑 Cancelar (Admin)
+                                            </button>
+                                        </form>
+                                    {% endif %}
+                                    
+                                    <!-- ENVIAR COMPROVANTE -->
+                                    {% if ins.info_pagamento and not ins.pagamento_confirmado %}
+                                        <a href="{{ url_for('enviar_comprovante', inscricao_id=ins.inscricao_id) }}" class="btn btn-sm btn-dourado">📤 Enviar Comprovante</a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endfor %}
+        {% else %}
+            <p class="text-muted text-center">Você ainda não tem inscrições.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== TAB 4 - MEUS RESULTADOS ===== -->
+    <div class="tab-pane" id="tab-resultados">
+        <h3>🏆 Meus Resultados</h3>
+        <p class="text-muted">Resultados das etapas que você participou</p>
+        {% if inscricoes_agrupadas %}
+            {% for categoria, inscricoes in inscricoes_agrupadas.items() %}
+                {% set tem_resultado = false %}
+                {% for ins in inscricoes %}
+                    {% if ins.ordem %}
+                        {% set tem_resultado = true %}
+                    {% endif %}
+                {% endfor %}
+                {% if tem_resultado %}
+                    <div class="categoria-group">
+                        <h4>🏷️ {{ categoria }}</h4>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Evento</th>
+                                    <th>Pássaro</th>
+                                    <th>Anilha</th>
+                                    <th>Data</th>
+                                    <th>Ordem</th>
+                                    <th>Posição</th>
+                                    <th>Pontos</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ins in inscricoes %}
+                                    {% if ins.ordem %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ ins.etapa_nome }}</strong>
+                                            {% if ins.torneio_nome %}
+                                                <br><span class="text-muted">{{ ins.torneio_nome }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ins.passaro_nome }}</td>
+                                        <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ ins.codigo_ave }}</code></td>
+                                        <td>{{ ins.data_etapa }}</td>
+                                        <td>
+                                            {% if ins.ordem %}
+                                                {% if ins.modalidade == 'FIBRA' %}
+                                                    <strong style="color: #C9980E;">{{ ins.ordem }}</strong>
+                                                {% else %}
+                                                    <strong style="color: #C9980E;">{{ ins.ordem }}º</strong>
+                                                {% endif %}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ ins.classificacao or '-' }}</td>
+                                        <td><strong style="color: #C9980E;">{{ ins.pontos or '-' }}</strong></td>
+                                    </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p class="text-muted text-center">Você ainda não tem resultados.</p>
+        {% endif %}
+    </div>
+
+    <!-- ===== TAB 5 - TRANSFERÊNCIAS ===== -->
+    <div class="tab-pane" id="tab-transferencias">
+        <h3>🔄 Transferências de Pássaros</h3>
+        
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+            <a href="{{ url_for('transferir_passaro') }}" class="btn btn-dourado">+ Nova Transferência</a>
+        </div>
+        
+        <div class="card-info">
+            <h4>📥 Transferências Recebidas (Pendentes)</h4>
+            {% set pendentes = namespace(lista=[]) %}
+            {% for cat, inscs in inscricoes_agrupadas.items() %}
+                {% for ins in inscs %}
+                    {% if ins.transferencia_pendente %}
+                        {% set pendentes.lista = pendentes.lista + [ins] %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if pendentes.lista %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pássaro</th>
+                            <th>Anilha</th>
+                            <th>De</th>
+                            <th>Data</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ins in pendentes.lista %}
+                        <tr>
+                            <td><strong>{{ ins.passaro_nome }}</strong></td>
+                            <td><code>{{ ins.codigo_ave }}</code></td>
+                            <td>{{ ins.socio_origem_nome or '—' }}</td>
+                            <td>{{ ins.data_transferencia or ins.criado_em }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('aceitar_transferencia', transferencia_id=ins.transferencia_id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm" style="background: #28a745; color: #fff;">✅ Aceitar</button>
+                                </form>
+                                <form method="POST" action="{{ url_for('recusar_transferencia', transferencia_id=ins.transferencia_id) }}" style="display: inline;">
+                                    <button type="submit" class="btn btn-sm btn-danger">❌ Recusar</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">Nenhuma transferência pendente.</p>
+            {% endif %}
+        </div>
+        
+        <div class="card-info">
+            <h4>📤 Transferências Enviadas</h4>
+            {% set enviadas = namespace(lista=[]) %}
+            {% for cat, inscs in inscricoes_agrupadas.items() %}
+                {% for ins in inscs %}
+                    {% if ins.transferencia_enviada %}
+                        {% set enviadas.lista = enviadas.lista + [ins] %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% if enviadas.lista %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Pássaro</th>
+                            <th>Anilha</th>
+                            <th>Para</th>
+                            <th>Status</th>
+                            <th>Data</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ins in enviadas.lista %}
+                        <tr>
+                            <td><strong>{{ ins.passaro_nome }}</strong></td>
+                            <td><code>{{ ins.codigo_ave }}</code></td>
+                            <td>{{ ins.socio_destino_nome or '—' }}</td>
+                            <td>
+                                <span class="badge-status {% if ins.status == 'pendente' %}badge-pendente{% elif ins.status == 'aprovado' or ins.status == 'aprovado_admin' %}badge-aprovado{% else %}badge-recusado{% endif %}">
+                                    {{ ins.status|upper }}
+                                </span>
+                            </td>
+                            <td>{{ ins.data_transferencia or ins.criado_em }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">Nenhuma transferência enviada.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        const tabId = this.dataset.tab;
+        document.getElementById('tab-' + tabId).classList.add('active');
+    });
+});
+</script>
+{% endblock %}

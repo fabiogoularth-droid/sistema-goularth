@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>🔄 Gerenciar Transferências</h2>
+    <p class="text-muted">Aprove ou recuse transferências de pássaros que já pontuaram em campeonatos.</p>
+</div>
+
+<div class="card">
+    <h2>📋 Solicitações Pendentes</h2>
+    {% if transferencias %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Pássaro</th>
+                    <th>Anilha</th>
+                    <th>De</th>
+                    <th>Para</th>
+                    <th>Data</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in transferencias %}
+                <tr>
+                    <td><strong>{{ t.passaro_nome }}</strong></td>
+                    <td><code>{{ t.codigo_ave }}</code></td>
+                    <td>{{ t.socio_origem_nome }}</td>
+                    <td>{{ t.socio_destino_nome }}</td>
+                    <td>{{ t.criado_em[:10] }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin_aprovar_transferencia', transferencia_id=t.transferencia_id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm" style="background: #28a745; color: #fff;">✅ Aprovar</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin_recusar_transferencia', transferencia_id=t.transferencia_id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">❌ Recusar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma solicitação de transferência pendente.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

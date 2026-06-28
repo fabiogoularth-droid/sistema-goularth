@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h2>✏️ Editar Perfil</h2>
+    <form method="POST">
+        <h3 style="color: #2B3328; border-bottom: 2px solid #C9980E; padding-bottom: 8px; margin: 20px 0;">Dados Pessoais</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Nome Completo *</label>
+                <input type="text" name="nome" value="{{ socio.nome }}" required>
+            </div>
+            <div class="form-group">
+                <label>Data de Nascimento</label>
+                <input type="date" name="nascimento" value="{{ socio.nascimento or '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Sexo</label>
+                <select name="sexo">
+                    <option value="">Selecione</option>
+                    <option value="M" {% if socio.sexo == 'M' %}selected{% endif %}>Masculino</option>
+                    <option value="F" {% if socio.sexo == 'F' %}selected{% endif %}>Feminino</option>
+                    <option value="O" {% if socio.sexo == 'O' %}selected{% endif %}>Outro</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>RG</label>
+                <input type="text" name="rg" value="{{ socio.rg or '' }}">
+            </div>
+        </div>
+
+        <h3 style="color: #2B3328; border-bottom: 2px solid #C9980E; padding-bottom: 8px; margin: 20px 0;">Endereço</h3>
+        <div class="form-group">
+            <label>CEP</label>
+            <input type="text" name="cep" id="cep" value="{{ socio.cep or '' }}" onblur="buscarCep()">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Endereço</label>
+                <input type="text" name="endereco" id="endereco" value="{{ socio.endereco or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Número</label>
+                <input type="text" name="numero" value="{{ socio.numero or '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Complemento</label>
+                <input type="text" name="complemento" value="{{ socio.complemento or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Bairro</label>
+                <input type="text" name="bairro" id="bairro" value="{{ socio.bairro or '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Cidade</label>
+                <input type="text" name="cidade" id="cidade" value="{{ socio.cidade or '' }}">
+            </div>
+            <div class="form-group">
+                <label>UF</label>
+                <input type="text" name="uf" id="uf" value="{{ socio.uf or '' }}" maxlength="2">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>País</label>
+            <input type="text" name="pais" value="{{ socio.pais or 'Brasil' }}">
+        </div>
+
+        <h3 style="color: #2B3328; border-bottom: 2px solid #C9980E; padding-bottom: 8px; margin: 20px 0;">Contato</h3>
+        <div class="form-row-3">
+            <div class="form-group">
+                <label>DDI</label>
+                <input type="text" name="ddi" placeholder="55" value="{{ socio.ddi or '' }}">
+            </div>
+            <div class="form-group">
+                <label>DDD</label>
+                <input type="text" name="ddd" placeholder="11" value="{{ socio.ddd or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Celular</label>
+                <input type="text" name="celular" placeholder="99999-9999" value="{{ socio.celular or '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fone Residencial</label>
+                <input type="text" name="fone_residencial" value="{{ socio.fone_residencial or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Fone Comercial</label>
+                <input type="text" name="fone_comercial" value="{{ socio.fone_comercial or '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>WhatsApp</label>
+            <input type="text" name="whatsapp" value="{{ socio.whatsapp or '' }}">
+        </div>
+        <div class="form-group">
+            <label>E-mail</label>
+            <input type="email" name="email" value="{{ socio.email or '' }}">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Skype</label>
+                <input type="text" name="skype" value="{{ socio.skype or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Facebook</label>
+                <input type="text" name="facebook" value="{{ socio.facebook or '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Instagram</label>
+                <input type="text" name="instagram" value="{{ socio.instagram or '' }}">
+            </div>
+            <div class="form-group">
+                <label>Site</label>
+                <input type="text" name="site" placeholder="https://..." value="{{ socio.site or '' }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Anotações</label>
+            <textarea name="anotacoes" rows="3">{{ socio.anotacoes or '' }}</textarea>
+        </div>
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="exibir_dados" value="1" {% if socio.exibir_dados %}checked{% endif %}>
+                Permitir exibição pública dos meus dados
+            </label>
+        </div>
+
+        <button type="submit" class="btn btn-dourado" style="width: 100%; padding: 14px; font-size: 16px;">Salvar Alterações</button>
+    </form>
+    
+    <div class="text-center mt-20">
+        <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+
+<script>
+function buscarCep() {
+    var cep = document.getElementById('cep').value.replace(/\D/g, '');
+    if (cep.length === 8) {
+        fetch('/api/cep/' + cep)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.erro) {
+                    document.getElementById('endereco').value = data.logradouro || '';
+                    document.getElementById('bairro').value = data.bairro || '';
+                    document.getElementById('cidade').value = data.localidade || '';
+                    document.getElementById('uf').value = data.uf || '';
+                }
+            })
+            .catch(() => {});
+    }
+}
+</script>
+{% endblock %}

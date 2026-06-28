@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>🏆 Resultados - {{ etapa.nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Total: {{ resultados|length }} pássaros</span>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Classificação Final</h2>
+    <p class="text-muted">
+        Pontuação: 1º = 30 pontos, 2º = 29 pontos, ... 30º = 1 ponto
+    </p>
+    {% if resultados %}
+        <table>
+            <thead>
+                <tr>
+                    <th>🏅</th>
+                    <th>Classificação</th>
+                    <th>Pássaro</th>
+                    <th>Anilha</th>
+                    <th>Proprietário</th>
+                    <th>Nota 1</th>
+                    <th>Nota 2</th>
+                    <th>Nota 3</th>
+                    <th>Nota 4</th>
+                    <th>Nota 5</th>
+                    <th>Média</th>
+                    <th>Pontos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resultados %}
+                <tr>
+                    <td>
+                        {% if r.classificacao == 1 %}
+                            <span style="font-size: 24px;">🥇</span>
+                        {% elif r.classificacao == 2 %}
+                            <span style="font-size: 24px;">🥈</span>
+                        {% elif r.classificacao == 3 %}
+                            <span style="font-size: 24px;">🥉</span>
+                        {% else %}
+                            <strong>#{{ r.classificacao }}</strong>
+                        {% endif %}
+                    </td>
+                    <td><strong>{{ r.classificacao }}º</strong></td>
+                    <td><strong>{{ r.passaro_nome }}</strong></td>
+                    <td><code>{{ r.codigo_ave }}</code></td>
+                    <td>{{ r.socio_nome }}</td>
+                    <td>{{ "%.2f"|format(r.nota1) }}</td>
+                    <td>{{ "%.2f"|format(r.nota2) }}</td>
+                    <td>{{ "%.2f"|format(r.nota3) }}</td>
+                    <td>{{ "%.2f"|format(r.nota4) }}</td>
+                    <td>{{ "%.2f"|format(r.nota5) }}</td>
+                    <td><strong>{{ "%.2f"|format(r.media) }}</strong></td>
+                    <td>
+                        {% if r.classificacao <= 30 %}
+                            <strong style="color: #C9980E; font-size: 18px;">
+                                {{ 31 - r.classificacao }}
+                            </strong>
+                        {% else %}
+                            <span class="text-muted">0</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Resultados ainda não disponíveis.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('ver_etapa_publica', etapa_id=etapa.id) }}" class="btn btn-outline btn-sm">Voltar para Etapa</a>
+</div>
+{% endblock %}

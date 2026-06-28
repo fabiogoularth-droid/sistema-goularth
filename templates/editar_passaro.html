@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 640px; margin: 0 auto;">
+    <h2>✏️ Editar Pássaro</h2>
+    
+    {% if precisa_aprovacao %}
+        <div class="flash" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+            ⚠️ <strong>Este pássaro já participou de torneios.</strong><br>
+            As alterações serão enviadas para aprovação do administrador antes de serem aplicadas.
+        </div>
+    {% endif %}
+    
+    <form method="POST">
+        <div class="form-group">
+            <label>Nome do Pássaro *</label>
+            <input type="text" name="nome" value="{{ passaro.nome }}" required>
+        </div>
+        
+        <div class="form-group" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border: 2px solid #C9980E;">
+            <label style="font-weight: bold; color: #2B3328;">Código da Ave</label>
+            <div class="form-row-3">
+                <div class="form-group">
+                    <label>Sigla do Criador *</label>
+                    <input type="text" name="sigla_criador" value="{{ passaro.sigla_criador }}" required maxlength="4">
+                    <div class="hint">Ex: II, CICC</div>
+                </div>
+                <div class="form-group">
+                    <label>Número da Anilha *</label>
+                    <input type="text" name="numero_anilha" value="{{ passaro.numero_anilha }}" required>
+                    <div class="hint">Ex: 0008, 0123</div>
+                </div>
+                <div class="form-group">
+                    <label>Ano *</label>
+                    <input type="text" name="ano_anilha" value="{{ passaro.ano_anilha }}" required maxlength="2">
+                    <div class="hint">Últimos 2 dígitos (ex: 23 para 2023)</div>
+                </div>
+            </div>
+            <div class="text-muted" style="margin-top: 8px; text-align: center; font-size: 12px;">
+                Código atual: <strong>{{ passaro.codigo_ave }}</strong>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Cor</label>
+            <input type="text" name="cor" value="{{ passaro.cor or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label>Anotações</label>
+            <textarea name="anotacoes" rows="3">{{ passaro.anotacoes or '' }}</textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-dourado" style="width: 100%; padding: 14px;">
+            {% if precisa_aprovacao %}
+                Enviar para Aprovação
+            {% else %}
+                Salvar Alterações
+            {% endif %}
+        </button>
+    </form>
+    
+    <div class="text-center mt-20">
+        <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+{% endblock %}

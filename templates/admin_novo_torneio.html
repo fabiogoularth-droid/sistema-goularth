@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2>🏆 Criar Novo Torneio</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Nome do Torneio *</label>
+            <input type="text" name="nome" placeholder="Ex: Copa Goularth 2026" required>
+        </div>
+        <div class="form-group">
+            <label>Endereço do Evento</label>
+            <input type="text" name="endereco" placeholder="Rua, Número, Bairro, Cidade - UF">
+            <div class="hint">Endereço onde será realizado o torneio</div>
+        </div>
+        <div class="form-group">
+            <label>Link do Mapa (Google Maps)</label>
+            <input type="url" name="mapa_url" placeholder="https://maps.google.com/...">
+            <div class="hint">Cole o link do Google Maps para o sócio visualizar a localização</div>
+        </div>
+        <button type="submit" class="btn btn-dourado" style="width: 100%;">Criar Torneio</button>
+    </form>
+    <div class="text-center mt-20">
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+{% endblock %}

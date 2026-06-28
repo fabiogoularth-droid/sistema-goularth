@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .upload-area {
+        border: 3px dashed #C9980E;
+        border-radius: 12px;
+        padding: 40px;
+        text-align: center;
+        background: #FAF6EC;
+        transition: all 0.3s;
+        cursor: pointer;
+    }
+    .upload-area:hover {
+        background: #f5efe0;
+        border-color: #b8890a;
+    }
+    .upload-area.dragover {
+        background: #e8dcc8;
+        border-color: #C9980E;
+    }
+    .upload-icon {
+        font-size: 60px;
+        color: #C9980E;
+    }
+    .preview-box {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 10px 0;
+        border-left: 4px solid #C9980E;
+    }
+    .badge-success {
+        background: #d4edda;
+        color: #155724;
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+    }
+</style>
+
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <h2>📤 Upload de Resultado</h2>
+    <p class="text-muted">Envie o arquivo CSV gerado pelo Marcador Digital</p>
+    
+    <div class="card" style="background: #f8f9fa; border-left: 4px solid #C9980E; font-size: 13px; margin-bottom: 20px;">
+        <h3 style="color: #2B3328; margin-top: 0;">📋 Formato esperado do CSV:</h3>
+        <pre style="background: #fff; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; border: 1px solid #ddd;">
+Posição;Proprietário;Pássaro;Anilha;Tempo;Pontuação
+1º;CG;MAESTRO;DM 0073 0030 2023;03:49.30;30
+2º;TAFFARI;GALOUCURA;OD 0284 0008 2023;03:42.57;29
+        </pre>
+        <p class="text-muted">⚠️ Use ponto e vírgula (;) como separador</p>
+    </div>
+    
+    <form method="POST" enctype="multipart/form-data" id="upload-form">
+        <div class="form-group">
+            <label>Nome do Torneio *</label>
+            <input type="text" name="torneio_nome" placeholder="Ex: COPA ABCO ADULTO LIVRE" required>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Categoria *</label>
+                <input type="text" name="categoria" placeholder="Ex: ADULTO LIVRE" required>
+                <div class="hint">Ex: ADULTO LIVRE, FILHOTE FIBRA, ADULTO CANTO LIVRE</div>
+            </div>
+            <div class="form-group">
+                <label>Data da Etapa *</label>
+                <input type="date" name="data_etapa" required>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Arquivo CSV *</label>
+            <div class="upload-area" id="drop-area">
+                <div class="upload-icon">📂</div>
+                <h3 style="color: #2B3328;">Arraste seu arquivo CSV aqui</h3>
+                <p class="text-muted">ou clique para selecionar</p>
+                <input type="file" name="arquivo" id="file-input" accept=".csv,.xlsx" style="display: none;" required>
+                <div id="file-preview" style="display: none; margin-top: 10px;">
+                    <div class="preview-box">
+                        <strong id="file-name"></strong>
+                        <span class="badge-success" id="file-size"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-dourado" style="width: 100%; padding: 14px; font-size: 16px;">
+            📥 Importar Resultado
+        </button>
+    </form>
+    
+    <div class="text-center mt-20">
+        <a href="{{ url_for('admin_resultados') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+
+<script>
+    const dropArea = document.getElementById('drop-area');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fileName = document.getElementById('file-name');
+    const fileSize = document.getElementById('file-size');
+
+    // Clique na área para abrir seletor
+    dropArea.addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    // Quando arquivo é selecionado
+    fileInput.addEventListener('change', (e) => {
+        if (fileInput.files.length > 0) {
+            mostrarArquivo(fileInput.files[0]);
+        }
+    });
+
+    // Drag and drop
+    dropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropArea.classList.add('dragover');
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.classList.remove('dragover');
+    });
+
+    dropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length > 0) {
+            fileInput.files = e.dataTransfer.files;
+            mostrarArquivo(e.dataTransfer.files[0]);
+        }
+    });
+
+    function mostrarArquivo(arquivo) {
+        fileName.textContent = arquivo.name;
+        const tamanho = (arquivo.size / 1024).toFixed(1);
+        fileSize.textContent = `${tamanho} KB`;
+        filePreview.style.display = 'block';
+        dropArea.style.borderColor = '#28a745';
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2>✏️ Editar Etapa</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Nome da Etapa *</label>
+            <input type="text" name="nome" value="{{ etapa.nome }}" required>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Modalidade *</label>
+                <select name="modalidade" required>
+                    <option value="FIBRA" {% if etapa.modalidade == 'FIBRA' %}selected{% endif %}>Fibra</option>
+                    <option value="CANTO_LIVRE" {% if etapa.modalidade == 'CANTO_LIVRE' %}selected{% endif %}>Canto Livre</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Categoria *</label>
+                <select name="categoria" required>
+                    <option value="FILHOTE" {% if etapa.categoria == 'FILHOTE' %}selected{% endif %}>Filhote</option>
+                    <option value="ADULTO" {% if etapa.categoria == 'ADULTO' %}selected{% endif %}>Adulto</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Data da Etapa *</label>
+            <input type="date" name="data_etapa" value="{{ etapa.data_etapa }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Prazo de Inscrição</label>
+            <input type="datetime-local" name="prazo_inscricao" value="{{ etapa.prazo_inscricao or '' }}">
+            <div class="hint">Deixe em branco para não ter prazo</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Limite de Pássaros por CPF</label>
+            <input type="number" name="limite_por_cpf" value="{{ etapa.limite_por_cpf or '' }}" placeholder="Ex: 2 (deixe vazio para livre)">
+        </div>
+        
+        <div class="form-group">
+            <label>Limite Total de Inscrições</label>
+            <input type="number" name="limite_inscricoes" value="{{ etapa.limite_inscricoes or '' }}" placeholder="Ex: 30 (deixe vazio para ilimitado)">
+            <div class="hint">Número máximo de inscrições permitidas nesta etapa.</div>
+        </div>
+        
+        <button type="submit" class="btn btn-dourado" style="width: 100%;">Salvar Alterações</button>
+    </form>
+    <div class="text-center mt-20">
+        <a href="{{ url_for('admin_ver_etapa', etapa_id=etapa.id) }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+{% endblock %}

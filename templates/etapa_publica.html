@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>📋 {{ etapa.nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Limite por CPF: {{ etapa.limite_por_cpf or 'Livre' }}</span>
+        <span class="text-muted">
+            Inscrições: <strong>{{ inscritos|length }}</strong>
+            {% if etapa.limite_inscricoes %}
+                / {{ etapa.limite_inscricoes }}
+            {% endif %}
+        </span>
+        {% if etapa.ordem_sorteada %}
+            <span class="tag" style="background: #C9980E; color: #fff;">🎲 Ordem sorteada</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    {% if etapa.modalidade == 'FIBRA' %}
+        <h2>📊 Estaca</h2>
+        <p class="text-muted">Ordem de apresentação - Fibra</p>
+    {% else %}
+        <h2>📋 Ordem de Apresentação</h2>
+        <p class="text-muted">Ordem de apresentação - Canto Livre</p>
+    {% endif %}
+    
+    {% if inscritos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        {% if etapa.modalidade == 'FIBRA' %}
+                            Estaca
+                        {% else %}
+                            Ordem
+                        {% endif %}
+                    </th>
+                    <th>Anilha</th>
+                    <th>Pássaro</th>
+                    <th>Proprietário</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ins in inscritos %}
+                <tr>
+                    <td>
+                        {% if ins.ordem %}
+                            {% if etapa.modalidade == 'FIBRA' %}
+                                <strong style="font-size: 18px; color: #C9980E;">{{ ins.ordem }}</strong>
+                            {% else %}
+                                <strong style="font-size: 18px; color: #C9980E;">{{ ins.ordem }}º</strong>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ ins.codigo_ave }}</code></td>
+                    <td><strong>{{ ins.passaro_nome }}</strong></td>
+                    <td>{{ ins.socio_nome }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma inscrição ainda.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('home') }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

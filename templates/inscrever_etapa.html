@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .passaro-item {
+        display: flex;
+        align-items: center;
+        padding: 8px 12px;
+        margin: 4px 0;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #fff;
+    }
+    .passaro-item:hover {
+        background: #f5efe0;
+        border-color: #C9980E;
+    }
+    .passaro-item.selected {
+        background: #e8dcc8;
+        border-color: #C9980E;
+        border-width: 2px;
+    }
+    .passaro-item input[type="checkbox"] {
+        margin-right: 12px;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    .passaro-item .info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+    }
+    .passaro-item .nome {
+        font-weight: bold;
+        font-size: 15px;
+        color: #2B3328;
+    }
+    .passaro-item .codigo {
+        font-size: 12px;
+        color: #888;
+    }
+    .passaro-item .categoria-tag {
+        font-size: 11px;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-weight: bold;
+    }
+    .tag-filhote {
+        background: #d4edda;
+        color: #155724;
+    }
+    .tag-adulto {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .btn-inscrever {
+        background: #C9980E;
+        color: #14181B;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 16px;
+        transition: all 0.3s;
+    }
+    .btn-inscrever:hover {
+        background: #b8890a;
+        transform: translateY(-2px);
+    }
+    .btn-inscrever:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+        transform: none;
+    }
+    .btn-selecionar-todos {
+        background: transparent;
+        border: 1px solid #C9980E;
+        color: #2B3328;
+        padding: 6px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+    }
+    .btn-selecionar-todos:hover {
+        background: #C9980E;
+        color: #fff;
+    }
+    .contador {
+        font-size: 14px;
+        color: #888;
+        margin-left: 10px;
+    }
+</style>
+
+<div class="card">
+    <h2>📝 Inscrever-se na Etapa</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Limite por CPF: {{ etapa.limite_por_cpf or 'Livre' }}</span>
+        <span class="text-muted">
+            Inscrições: <strong>{{ total_inscritos }}</strong>
+            {% if etapa.limite_inscricoes %}
+                / {{ etapa.limite_inscricoes }}
+            {% endif %}
+        </span>
+    </div>
+    
+    {% if torneio %}
+        <p><strong>Torneio:</strong> {{ torneio.nome }}</p>
+        {% if torneio.endereco %}
+            <p><strong>📍 Local:</strong> {{ torneio.endereco }}</p>
+            {% if torneio.mapa_url %}
+                <p><a href="{{ torneio.mapa_url }}" target="_blank" class="btn btn-sm btn-outline">🗺️ Ver no Mapa</a></p>
+            {% endif %}
+        {% endif %}
+    {% else %}
+        <p><strong>Evento:</strong> Festivo avulso</p>
+    {% endif %}
+    
+    <p><strong>Já inscritos nesta etapa:</strong> {{ ja_inscritos_cpf }} pássaro(s) do seu CPF</p>
+    <p><strong>Limite por CPF:</strong> {{ etapa.limite_por_cpf or 'Livre' }}</p>
+</div>
+
+{% if etapa.info_pagamento %}
+<div class="card" style="border-left: 4px solid #C9980E;">
+    <h3>💳 Informações de Pagamento</h3>
+    <p style="white-space: pre-line;">{{ etapa.info_pagamento }}</p>
+    {% if etapa.prazo_pagamento %}
+        <p class="text-muted">⏰ Prazo para pagamento: {{ etapa.prazo_pagamento }}</p>
+    {% endif %}
+    <p class="text-muted">Após a inscrição, você poderá enviar o comprovante na sua área do sócio.</p>
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>🐦 Selecione os Pássaros</h2>
+    <p class="text-muted">Selecione um ou mais pássaros compatíveis ({{ etapa.categoria }})</p>
+    
+    {% if passaros %}
+        <form method="POST" id="form-inscricao">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                <div>
+                    <span style="font-weight: bold;">Pássaros disponíveis:</span>
+                    <span class="contador" id="contador-selecionados">0 selecionados</span>
+                </div>
+                <div>
+                    <button type="button" class="btn-selecionar-todos" id="btn-selecionar-todos">Selecionar Todos</button>
+                    <button type="button" class="btn-selecionar-todos" id="btn-desmarcar-todos" style="border-color: #ccc;">Desmarcar Todos</button>
+                </div>
+            </div>
+            
+            <div id="lista-passaros" style="max-height: 300px; overflow-y: auto;">
+                {% for p in passaros %}
+                    <div class="passaro-item {% if p.id in ja_inscritos_ids %}disabled{% endif %}" 
+                         data-id="{{ p.id }}"
+                         style="{% if p.id in ja_inscritos_ids %}opacity:0.5; background:#f0f0f0; cursor:not-allowed;{% endif %}">
+                        <input type="checkbox" name="passaros_ids" value="{{ p.id }}" 
+                               id="passaro_{{ p.id }}"
+                               {% if p.id in ja_inscritos_ids %}disabled{% endif %}>
+                        <div class="info">
+                            <span class="nome">{{ p.nome }}</span>
+                            <span class="codigo">Anilha: {{ p.codigo_ave }}</span>
+                        </div>
+                        <span class="categoria-tag {% if p.categoria == 'FILHOTE' %}tag-filhote{% else %}tag-adulto{% endif %}">
+                            {{ p.categoria }}
+                        </span>
+                        {% if p.id in ja_inscritos_ids %}
+                            <span style="color: green; font-weight: bold; margin-left: 10px;">✅ Já inscrito</span>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+                <button type="submit" class="btn-inscrever" id="btn-inscrever">
+                    📝 Inscrever Selecionados
+                </button>
+                <span style="font-size: 13px; color: #888;" id="info-inscricao"></span>
+            </div>
+            
+            <div style="margin-top: 10px; font-size: 13px; color: #888;">
+                <span>⚠️ Limite por CPF: <strong>{{ etapa.limite_por_cpf or 'Livre' }}</strong></span>
+                <span style="margin-left: 20px;">Já inscritos: <strong>{{ ja_inscritos_cpf }}</strong></span>
+                {% if etapa.limite_por_cpf %}
+                    <span style="margin-left: 20px;">Disponíveis: <strong>{{ etapa.limite_por_cpf - ja_inscritos_cpf }}</strong></span>
+                {% endif %}
+            </div>
+        </form>
+    {% else %}
+        <p class="text-muted text-center">Você não tem pássaros compatíveis com esta etapa.</p>
+        <div class="text-center mt-20">
+            <a href="{{ url_for('novo_passaro') }}" class="btn btn-dourado">Cadastrar um pássaro</a>
+        </div>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>📋 Inscrições Atuais</h2>
+    {% if inscritos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Ordem</th>
+                    <th>Anilha</th>
+                    <th>Pássaro</th>
+                    <th>Proprietário</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ins in inscritos %}
+                <tr>
+                    <td>
+                        {% if ins.ordem %}
+                            <strong style="font-size: 18px; color: #C9980E;">#{{ ins.ordem }}</strong>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ ins.codigo_ave }}</code></td>
+                    <td>{{ ins.passaro_nome }}</td>
+                    <td>{{ ins.socio_nome }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma inscrição ainda.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+
+<script>
+    // Contador de selecionados
+    const checkboxes = document.querySelectorAll('input[name="passaros_ids"]');
+    const contador = document.getElementById('contador-selecionados');
+    const btnInscrever = document.getElementById('btn-inscrever');
+    
+    function atualizarContador() {
+        const selecionados = document.querySelectorAll('input[name="passaros_ids"]:checked').length;
+        contador.textContent = `${selecionados} selecionado${selecionados !== 1 ? 's' : ''}`;
+        
+        // Destaca os itens selecionados
+        document.querySelectorAll('.passaro-item').forEach(item => {
+            const checkbox = item.querySelector('input[type="checkbox"]');
+            if (checkbox && checkbox.checked) {
+                item.classList.add('selected');
+            } else {
+                item.classList.remove('selected');
+            }
+        });
+        
+        // Ativa/desativa botão
+        btnInscrever.disabled = selecionados === 0;
+    }
+    
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', atualizarContador);
+    });
+    
+    // Selecionar todos
+    document.getElementById('btn-selecionar-todos').addEventListener('click', function() {
+        checkboxes.forEach(cb => {
+            if (!cb.disabled) cb.checked = true;
+        });
+        atualizarContador();
+    });
+    
+    // Desmarcar todos
+    document.getElementById('btn-desmarcar-todos').addEventListener('click', function() {
+        checkboxes.forEach(cb => {
+            cb.checked = false;
+        });
+        atualizarContador();
+    });
+    
+    // Clique no item marca/desmarca o checkbox
+    document.querySelectorAll('.passaro-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            // Ignora se clicou no checkbox diretamente
+            if (e.target.tagName === 'INPUT') return;
+            const checkbox = this.querySelector('input[type="checkbox"]');
+            if (checkbox && !checkbox.disabled) {
+                checkbox.checked = !checkbox.checked;
+                atualizarContador();
+            }
+        });
+    });
+    
+    // Inicializa
+    atualizarContador();
+    
+    // Exibe info no submit
+    document.getElementById('form-inscricao').addEventListener('submit', function(e) {
+        const selecionados = document.querySelectorAll('input[name="passaros_ids"]:checked').length;
+        if (selecionados === 0) {
+            e.preventDefault();
+            alert('Selecione pelo menos um pássaro para inscrever.');
+        }
+    });
+</script>
+{% endblock %}

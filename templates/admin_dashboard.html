@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>⚙️ Painel Administrativo</h2>
+    <p>Bem-vindo, <strong>{{ session.admin_nome }}</strong>!</p>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="{{ url_for('admin_novo_torneio') }}" class="btn btn-dourado">+ Novo Torneio</a>
+        <a href="{{ url_for('admin_novo_festivo') }}" class="btn" style="background: #6c757d; color: #fff;">+ Novo Festivo</a>
+        <a href="{{ url_for('admin_criar') }}" class="btn" style="background: #17a2b8; color: #fff;">👤 Criar Admin</a>
+        <a href="{{ url_for('admin_trocar_senha') }}" class="btn btn-outline">🔑 Trocar Senha</a>
+        <a href="{{ url_for('admin_resultados') }}" class="btn" style="background: #1A6B30; color: #fff;">📤 Resultados Importados</a>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-danger">Sair</a>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📝 Edições de Pássaros Pendentes</h2>
+    {% if edicoes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Sócio</th>
+                    <th>Pássaro</th>
+                    <th>Anilha</th>
+                    <th>Alterações</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in edicoes %}
+                <tr>
+                    <td>{{ e.socio_nome }}</td>
+                    <td><strong>{{ e.nome_atual }}</strong> → <span style="color: #C9980E;">{{ e.nome_novo }}</span></td>
+                    <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ e.codigo_ave }}</code></td>
+                    <td style="font-size: 12px;">
+                        Sigla: {{ e.sigla_criador_novo }}<br>
+                        Anilha: {{ e.numero_anilha_novo }}/{{ e.ano_anilha_novo }}
+                    </td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin_aprovar_edicao', edicao_id=e.edicao_id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-dourado">✅ Aprovar</button>
+                        </form>
+                        <form method="POST" action="{{ url_for('admin_rejeitar_edicao', edicao_id=e.edicao_id) }}" style="display: inline;">
+                            <button type="submit" class="btn btn-sm btn-danger">❌ Rejeitar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma edição pendente.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>🏆 Torneios</h2>
+    {% if torneios %}
+        <div class="grid-2">
+            {% for t in torneios %}
+                <div class="card" style="border-left: 4px solid #C9980E;">
+                    <h3 style="margin-top: 0;">{{ t.nome }}</h3>
+                    <p class="text-muted">Criado em: {{ t.criado_em[:10] }}</p>
+                    {% if t.endereco %}
+                        <p class="text-muted">📍 {{ t.endereco }}</p>
+                    {% endif %}
+                    <div style="display: flex; gap: 8px;">
+                        <a href="{{ url_for('admin_ver_torneio', torneio_id=t.id) }}" class="btn btn-sm btn-outline">Gerenciar</a>
+                        <a href="{{ url_for('admin_editar_torneio', torneio_id=t.id) }}" class="btn btn-sm" style="background: #17a2b8; color: #fff;">✏️ Editar</a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted text-center">Nenhum torneio criado.</p>
+    {% endif %}
+</div>
+
+<div class="card">
+    <h2>🎪 Festivos</h2>
+    {% if festivos %}
+        <div class="grid-2">
+            {% for f in festivos %}
+                <div class="card" style="border-left: 4px solid #6c757d;">
+                    <h3 style="margin-top: 0;">{{ f.nome }}</h3>
+                    <p class="text-muted">Evento avulso</p>
+                    <a href="{{ url_for('admin_ver_etapa', etapa_id=f.id) }}" class="btn btn-sm btn-outline">Gerenciar</a>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted text-center">Nenhum festivo criado.</p>
+    {% endif %}
+</div>
+{% endblock %}

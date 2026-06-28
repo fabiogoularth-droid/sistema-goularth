@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 640px; margin: 0 auto;">
+    <h2>🐦 Cadastrar Pássaro</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Nome do Pássaro *</label>
+            <input type="text" name="nome" value="{{ nome or '' }}" required>
+        </div>
+        
+        <div class="form-group" style="background: #f8f9fa; padding: 16px; border-radius: 6px; border: 2px solid #C9980E;">
+            <label style="font-weight: bold; color: #2B3328;">Código da Ave</label>
+            <div class="form-row-3">
+                <div class="form-group">
+                    <label>Sigla do Criador *</label>
+                    <input type="text" name="sigla_criador" placeholder="II" value="{{ sigla_criador or '' }}" required maxlength="4">
+                    <div class="hint">Ex: II, CICC</div>
+                </div>
+                <div class="form-group">
+                    <label>Número da Anilha *</label>
+                    <input type="text" name="numero_anilha" placeholder="0008" value="{{ numero_anilha or '' }}" required>
+                    <div class="hint">Ex: 0008, 0123</div>
+                </div>
+                <div class="form-group">
+                    <label>Ano *</label>
+                    <input type="text" name="ano_anilha" placeholder="23" value="{{ ano_anilha or '' }}" required maxlength="2">
+                    <div class="hint">Últimos 2 dígitos (ex: 23 para 2023)</div>
+                </div>
+            </div>
+            <div class="text-muted" style="margin-top: 8px; text-align: center;">
+                <strong>Exemplo:</strong> II-0889-0008-23
+            </div>
+            <div class="text-muted" style="margin-top: 4px; text-align: center; font-size: 12px;">
+                O código completo será gerado como: FOB-<strong>sigla_criador</strong>-<strong>número_sócio</strong>-<strong>número_anilha</strong>-<strong>ano</strong>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Cor</label>
+            <input type="text" name="cor" placeholder="Ex: Amarelo" value="{{ cor or '' }}">
+        </div>
+        
+        <div class="form-group">
+            <label>Anotações</label>
+            <textarea name="anotacoes" rows="3">{{ anotacoes or '' }}</textarea>
+        </div>
+        
+        <button type="submit" class="btn btn-dourado" style="width: 100%; padding: 14px;">Cadastrar Pássaro</button>
+    </form>
+    
+    <div class="text-center mt-20">
+        <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>📋 {{ etapa.nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Limite por CPF: {{ etapa.limite_por_cpf or 'Livre' }}</span>
+        <span class="text-muted">
+            Inscrições: <strong>{{ total_inscritos }}</strong>
+            {% if etapa.limite_inscricoes %}
+                / {{ etapa.limite_inscricoes }}
+            {% endif %}
+        </span>
+        {% if etapa.inscricoes_abertas %}
+            <span style="color: green;">✅ Inscrições abertas</span>
+        {% else %}
+            <span style="color: red;">🔒 Inscrições fechadas</span>
+        {% endif %}
+    </div>
+    
+    <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
+        <a href="{{ url_for('admin_editar_etapa', etapa_id=etapa.id) }}" class="btn" style="background: #17a2b8; color: #fff;">✏️ Editar Etapa</a>
+        <a href="{{ url_for('admin_resultados_etapa', etapa_id=etapa.id) }}" class="btn" style="background: #28a745; color: #fff;">📊 Resultados</a>
+        <a href="{{ url_for('admin_resultado_manual', etapa_id=etapa.id) }}" class="btn" style="background: #8B4226; color: #fff;">📝 Resultado Manual</a>
+        <a href="{{ url_for('admin_lista_apresentacao', etapa_id=etapa.id) }}" class="btn" style="background: #6c757d; color: #fff;">📋 Lista Apresentação</a>
+        
+        <form method="POST" action="{{ url_for('admin_atualizar_limite', etapa_id=etapa.id) }}" style="display: inline-flex; gap: 8px; align-items: center;">
+            <label style="font-weight: 600; font-size: 14px;">Limite total:</label>
+            <input type="number" name="limite_inscricoes" 
+                   value="{{ etapa.limite_inscricoes or '' }}" 
+                   placeholder="∞" 
+                   style="width: 80px; padding: 6px 10px; border: 2px solid #ddd; border-radius: 4px;">
+            <button type="submit" class="btn btn-sm" style="background: #6c757d; color: #fff;">Atualizar</button>
+        </form>
+        
+        <form method="POST" action="{{ url_for('admin_toggle_inscricoes', etapa_id=etapa.id) }}" style="display: inline;">
+            <button type="submit" class="btn" style="background: #6c757d; color: #fff;">
+                {% if etapa.inscricoes_abertas %}🔒 Fechar Inscrições{% else %}✅ Abrir Inscrições{% endif %}
+            </button>
+        </form>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+
+{% if etapa.info_pagamento %}
+<div class="card" style="border-left: 4px solid #C9980E;">
+    <h3>💳 Informações de Pagamento</h3>
+    <p style="white-space: pre-line;">{{ etapa.info_pagamento }}</p>
+    {% if etapa.prazo_pagamento %}
+        <p class="text-muted">⏰ Prazo para pagamento: {{ etapa.prazo_pagamento }}</p>
+    {% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+    <h2>📋 Inscrições ({{ inscritos|length }})</h2>
+    {% if inscritos %}
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        {% if etapa.modalidade == 'FIBRA' %}
+                            Estaca
+                        {% else %}
+                            Ordem
+                        {% endif %}
+                    </th>
+                    <th>Anilha</th>
+                    <th>Pássaro</th>
+                    <th>Proprietário</th>
+                    <th>Pagamento</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ins in inscritos %}
+                <tr>
+                    <td>
+                        {% if ins.ordem %}
+                            {% if etapa.modalidade == 'FIBRA' %}
+                                <strong style="font-size: 18px; color: #C9980E;">{{ ins.ordem }}</strong>
+                            {% else %}
+                                <strong style="font-size: 18px; color: #C9980E;">{{ ins.ordem }}º</strong>
+                            {% endif %}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ ins.codigo_ave }}</code></td>
+                    <td><strong>{{ ins.passaro_nome }}</strong></td>
+                    <td>{{ ins.socio_nome }}</td>
+                    <td>
+                        {% if ins.pagamento_confirmado %}
+                            <span style="color: green; font-weight: bold;">✅ Pago</span>
+                        {% elif ins.pagamento_status == 'pendente' %}
+                            <span style="color: orange;">⏳ Pendente</span>
+                        {% else %}
+                            <span style="color: red;">❌ Não pago</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not ins.pagamento_confirmado %}
+                            <form method="POST" action="{{ url_for('admin_confirmar_pagamento', inscricao_id=ins.inscricao_id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm" style="background: #28a745; color: #fff;">✅ Confirmar</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_recusar_pagamento', inscricao_id=ins.inscricao_id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger">❌ Recusar</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">🔒 Confirmado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma inscrição ainda.</p>
+    {% endif %}
+</div>
+{% endblock %}

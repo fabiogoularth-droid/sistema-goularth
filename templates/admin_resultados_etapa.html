@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>📊 Resultados - {{ etapa.nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Inscrições: {{ inscritos|length }}</span>
+    </div>
+</div>
+
+<div class="card">
+    <h2>📋 Inserir Resultados</h2>
+    <p class="text-muted">
+        {% if etapa.modalidade == 'FIBRA' %}
+            Insira o <strong>Tempo Parcial</strong> e o <strong>Tempo Final</strong> para cada pássaro.
+        {% else %}
+            Insira o <strong>Tempo Final</strong> para cada pássaro.
+        {% endif %}
+    </p>
+    
+    <form method="POST" id="form-resultados">
+        <table>
+            <thead>
+                <tr>
+                    <th>
+                        {% if etapa.modalidade == 'FIBRA' %}
+                            Estaca
+                        {% else %}
+                            Ordem
+                        {% endif %}
+                    </th>
+                    <th>Anilha</th>
+                    <th>Pássaro</th>
+                    <th>Proprietário</th>
+                    <th>RES. PARCIAL</th>
+                    <th>RES. FINAL</th>
+                    <th>Classificação</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ins in inscritos %}
+                {% set resultado = resultados|selectattr("inscricao_id", "equalto", ins.inscricao_id)|first %}
+                <tr>
+                    <td>
+                        <strong style="color: #C9980E; font-size: 16px;">
+                            {% if etapa.modalidade == 'FIBRA' %}
+                                {{ ins.ordem or '—' }}
+                            {% else %}
+                                {{ ins.ordem or '—' }}
+                            {% endif %}
+                        </strong>
+                    </td>
+                    <td><code style="background: #eee; padding: 2px 8px; border-radius: 4px;">{{ ins.codigo_ave }}</code></td>
+                    <td><strong>{{ ins.passaro_nome }}</strong></td>
+                    <td>{{ ins.socio_nome }}</td>
+                    <td>
+                        <input type="hidden" name="inscricao_id" value="{{ ins.inscricao_id }}">
+                        {% if etapa.modalidade == 'FIBRA' %}
+                            <input type="text" name="tempo_parcial_{{ ins.inscricao_id }}" 
+                                   value="{{ resultado.nota1 if resultado and resultado.nota1 else '' }}" 
+                                   placeholder="00:00.00" 
+                                   style="width: 100px; padding: 4px; border: 2px solid #ddd; border-radius: 4px;">
+                        {% else %}
+                            <span class="text-muted">—</span>
+                            <input type="hidden" name="tempo_parcial_{{ ins.inscricao_id }}" value="">
+                        {% endif %}
+                    </td>
+                    <td>
+                        <input type="text" name="tempo_final_{{ ins.inscricao_id }}" 
+                               value="{{ resultado.nota1 if resultado and resultado.nota1 and etapa.modalidade == 'CANTO_LIVRE' else '' }}"
+                               placeholder="00:00.00" 
+                               style="width: 100px; padding: 4px; border: 2px solid #ddd; border-radius: 4px;">
+                    </td>
+                    <td>
+                        <input type="number" name="classificacao_{{ ins.inscricao_id }}" 
+                               value="{{ resultado.classificacao if resultado else '' }}" 
+                               min="1" 
+                               style="width: 60px; padding: 4px; border: 2px solid #ddd; border-radius: 4px;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit" class="btn btn-dourado" style="margin-top: 20px;">💾 Salvar Resultados</button>
+    </form>
+</div>
+
+<div class="card">
+    <h2>📊 Resultados Salvos</h2>
+    {% if resultados %}
+        <table>
+            <thead>
+                <tr>
+                    <th>🏅</th>
+                    <th>Classificação</th>
+                    <th>Pássaro</th>
+                    <th>Proprietário</th>
+                    <th>Tempo</th>
+                    <th>Pontos</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in resultados|sort(attribute='classificacao') %}
+                <tr>
+                    <td>
+                        {% if r.classificacao == 1 %}🥇
+                        {% elif r.classificacao == 2 %}🥈
+                        {% elif r.classificacao == 3 %}🥉
+                        {% else %}#{{ r.classificacao }}{% endif %}
+                    </td>
+                    <td><strong>{{ r.classificacao }}º</strong></td>
+                    <td><strong>{{ r.passaro_nome }}</strong></td>
+                    <td>{{ r.socio_nome }}</td>
+                    <td>{{ r.nota1 }}</td>
+                    <td>
+                        {% if r.classificacao <= 30 %}
+                            <strong style="color: #C9980E;">{{ 31 - r.classificacao }}</strong>
+                        {% else %}
+                            <span class="text-muted">0</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhum resultado salvo ainda.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('admin_ver_etapa', etapa_id=etapa.id) }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .lista-container {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+    .destaque {
+        background: #fff3cd;
+        color: #856404;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: bold;
+    }
+    .btn-exportar {
+        background: #28a745;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    .btn-exportar:hover {
+        background: #1e7e34;
+    }
+    .btn-exportar-livre {
+        background: #C9980E;
+        color: #14181B;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: all 0.3s;
+    }
+    .btn-exportar-livre:hover {
+        background: #b8890a;
+    }
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+</style>
+
+<div class="card">
+    <h2>📋 Lista de Apresentação - {{ etapa.nome }}</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">
+        <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
+        {% if etapa.categoria == 'FILHOTE' %}
+            <span class="tag tag-filhote">Filhote</span>
+        {% else %}
+            <span class="tag tag-adulto">Adulto</span>
+        {% endif %}
+        <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
+        <span class="text-muted">Total: {{ lista|length }} pássaros</span>
+        <span class="text-muted">Vagas: {{ etapa.limite_inscricoes or 'Ilimitado' }}</span>
+    </div>
+</div>
+
+<div class="card">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 15px;">
+        <h3 style="margin: 0;">
+            {% if etapa.modalidade == 'FIBRA' %}
+                📊 Estaca
+            {% else %}
+                📋 Ordem de Apresentação
+            {% endif %}
+        </h3>
+        <div class="export-buttons">
+            <button onclick="window.print()" class="btn btn-dourado btn-sm">🖨️ Imprimir</button>
+            
+            <!-- Botão para exportar padrão (Excel) -->
+            <a href="{{ url_for('admin_exportar_lista_apresentacao', etapa_id=etapa.id) }}" class="btn-exportar btn-sm">📤 Exportar Excel</a>
+            
+            <!-- Botão específico para LIVRE (formato Marcador Digital) -->
+            {% if etapa.modalidade == 'CANTO_LIVRE' %}
+                <a href="{{ url_for('admin_exportar_lista_livre', etapa_id=etapa.id) }}" class="btn-exportar-livre btn-sm">📤 Exportar LIVRE (Marcador)</a>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="lista-container">
+        {% if lista %}
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th style="width: 80px;">
+                            {% if etapa.modalidade == 'FIBRA' %}
+                                Estaca
+                            {% else %}
+                                Ordem
+                            {% endif %}
+                        </th>
+                        <th>Pássaro</th>
+                        <th>Anilha</th>
+                        <th>Proprietário</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in lista %}
+                    <tr>
+                        <td><strong>{{ item.ordem_sequencial }}</strong></td>
+                        <td>
+                            {% if item.ordem_sistema != '—' %}
+                                {% if etapa.modalidade == 'FIBRA' %}
+                                    <strong style="color: #C9980E; font-size: 16px;">{{ item.ordem_sistema }}</strong>
+                                {% else %}
+                                    <strong style="color: #C9980E; font-size: 16px;">{{ item.ordem_sistema }}º</strong>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td><strong>{{ item.passaro_nome }}</strong></td>
+                        <td><code>{{ item.codigo_ave }}</code></td>
+                        <td>{{ item.socio_nome }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p class="text-muted text-center">Nenhum pássaro inscrito.</p>
+        {% endif %}
+    </div>
+    
+    <div style="margin-top: 15px; padding: 10px; background: #f8f4ea; border-radius: 6px; border-left: 4px solid #C9980E;">
+        <p style="margin: 0; font-size: 13px; color: #888;">
+            💡 <strong>Legenda:</strong>
+            <span style="color: #2B3328; font-weight: bold;">#</span> = Ordem sequencial de inscrição
+            {% if etapa.modalidade == 'FIBRA' %}
+                | <span style="color: #C9980E; font-weight: bold;">Estaca</span> = Ordem de apresentação do sistema
+                | <span style="color: #28a745;">Exportar Excel</span> = Formato padrão
+            {% else %}
+                | <span style="color: #C9980E; font-weight: bold;">Ordem</span> = Ordem de apresentação do sistema
+                | <span style="color: #C9980E; font-weight: bold;">Exportar LIVRE (Marcador)</span> = Formato específico para importar no Marcador Digital
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('admin_ver_etapa', etapa_id=etapa.id) }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

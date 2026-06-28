@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 0 auto;">
+    <h2>📤 Enviar Comprovante de Pagamento</h2>
+    <p><strong>Inscrição:</strong> {{ inscricao.etapa_nome }}</p>
+    <p><strong>Pássaro:</strong> {{ inscricao.passaro_nome }} - {{ inscricao.codigo_ave }}</p>
+    <p><strong>Ordem:</strong> #{{ inscricao.ordem }}</p>
+    
+    {% if inscricao.info_pagamento %}
+    <div class="card" style="background: #f8f9fa; border-left: 4px solid #C9980E;">
+        <h3>💳 Informações de Pagamento</h3>
+        <p style="white-space: pre-line;">{{ inscricao.info_pagamento }}</p>
+        {% if inscricao.prazo_pagamento %}
+            <p class="text-muted">⏰ Prazo para pagamento: {{ inscricao.prazo_pagamento }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <form method="POST">
+        <div class="form-group">
+            <label>Comprovante</label>
+            <textarea name="comprovante" rows="6" placeholder="Cole aqui o comprovante do pagamento (PIX, transferência, etc)&#10;Ex: PIX enviado para email@clube.com - Valor R$ 50,00 - Data: 25/06/2026 14:30"></textarea>
+            <div class="hint">Descreva detalhadamente o comprovante para que o administrador possa confirmar</div>
+        </div>
+        <button type="submit" class="btn btn-dourado" style="width: 100%;">Enviar Comprovante</button>
+    </form>
+    <div class="text-center mt-20">
+        <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">Voltar</a>
+    </div>
+</div>
+{% endblock %}

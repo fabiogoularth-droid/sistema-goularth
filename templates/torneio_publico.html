@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>🏆 {{ torneio.nome }}</h2>
+    <p class="text-muted">Criado em: {{ torneio.criado_em[:10] }}</p>
+</div>
+
+<div class="card">
+    <h2>📋 Etapas</h2>
+    {% if etapas %}
+        <div class="grid-2">
+            {% for e in etapas %}
+                <div class="card" style="border-left: 4px solid #C9980E;">
+                    <h3 style="margin-top: 0;">{{ e.nome }}</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;">
+                        <span class="tag tag-fibra">{{ nomes_modalidade[e.modalidade] }}</span>
+                        {% if e.categoria == 'FILHOTE' %}
+                            <span class="tag tag-filhote">Filhote</span>
+                        {% else %}
+                            <span class="tag tag-adulto">Adulto</span>
+                        {% endif %}
+                        <span class="text-muted">📅 {{ e.data_etapa }}</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <a href="{{ url_for('ver_etapa_publica', etapa_id=e.id) }}" class="btn btn-sm btn-outline">Ver Inscritos</a>
+                        {% if session.socio_id %}
+                            <a href="{{ url_for('inscrever_na_etapa', etapa_id=e.id) }}" class="btn btn-sm btn-dourado">📝 Inscrever-se</a>
+                        {% else %}
+                            <span class="text-muted">Faça login para se inscrever</span>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted text-center">Nenhuma etapa cadastrada ainda.</p>
+    {% endif %}
+</div>
+{% endblock %}

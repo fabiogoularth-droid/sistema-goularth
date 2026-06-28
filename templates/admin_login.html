@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card" style="max-width: 400px; margin: 0 auto;">
+    <h2>⚙️ Acesso Administrativo</h2>
+    <form method="POST">
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="admin@clube.com" value="{{ email or '' }}" required>
+        </div>
+        <div class="form-group">
+            <label>Senha</label>
+            <input type="password" name="senha" required>
+        </div>
+        <button type="submit" class="btn" style="width: 100%; background: #8B4226; color: #fff;">Entrar</button>
+    </form>
+    <div class="text-center mt-20">
+        <p class="text-muted">Admin padrão: admin@clube.com / admin123</p>
+    </div>
+</div>
+{% endblock %}
