@@ -5,15 +5,42 @@ SISTEMA GOULARTH DE TORNEIOS — aplicação Flask
 """
 
 import os
+import sys
+import subprocess
+
+# ================================================================
+# FORÇAR INSTALAÇÃO DO PSYCOPG2 PARA POSTGRESQL
+# ================================================================
+try:
+    import psycopg2
+    print("✅ psycopg2 importado com sucesso!")
+except ImportError:
+    print("❌ psycopg2 não encontrado. Instalando...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "psycopg2-binary==2.9.9"])
+    import psycopg2
+    print("✅ psycopg2 instalado com sucesso!")
+
 import functools
 import datetime
 import threading
 import time
+import logging
 from flask import (
     Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 )
 import banco
 import regras
+
+# Configurar logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('app.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave-desenvolvimento-trocar")
@@ -95,6 +122,33 @@ def injetar_globais():
 
 
 # ================================================================
+# HEALTH CHECK
+# ================================================================
+@app.route("/health")
+def health_check():
+    """Endpoint para verificar saúde da aplicação."""
+    try:
+        db_exists = os.path.exists("clube.db")
+        db_size = os.path.getsize("clube.db") if db_exists else 0
+        total_resultados = db.contar_resultados_importados() if db_exists else 0
+        
+        return jsonify({
+            "status": "ok",
+            "banco_existe": db_exists,
+            "banco_tamanho": f"{db_size / 1024:.2f} KB",
+            "resultados_importados": total_resultados,
+            "timestamp": datetime.datetime.now().isoformat(),
+            "usando_postgres": db.usar_postgres if hasattr(db, 'usar_postgres') else False
+        })
+    except Exception as e:
+        logger.error(f"Erro no health check: {e}")
+        return jsonify({
+            "status": "erro",
+            "erro": str(e)
+        }), 500
+
+
+# ================================================================
 # PÁGINAS PÚBLICAS
 # ================================================================
 @app.route("/")
@@ -161,7 +215,7 @@ def ranking_geral():
         categorias = db.obter_categorias_disponiveis()
         return render_template("ranking_geral.html", ranking=ranking, categorias=categorias)
     except Exception as e:
-        print(f"Erro no ranking: {e}")
+        logger.error(f"Erro no ranking: {e}")
         return render_template("ranking_geral.html", ranking=[], categorias=[])
 
 
@@ -223,9 +277,9 @@ def cadastro():
         celular = request.form.get("celular", "").strip()
         whatsapp = request.form.get("whatsapp", "").strip()
         email = request.form.get("email", "").strip()
-        skype = request.form.get("skype", "").strip()
         facebook = request.form.get("facebook", "").strip()
         instagram = request.form.get("instagram", "").strip()
+        youtube = request.form.get("youtube", "").strip()
         exibir_dados = request.form.get("exibir_dados", "0") == "1"
         senha = request.form.get("senha", "")
         confirmar = request.form.get("confirmar_senha", "")
@@ -242,8 +296,8 @@ def cadastro():
                 cep=cep, endereco=endereco, numero=numero, complemento=complemento,
                 bairro=bairro, cidade=cidade, uf=uf, pais=pais,
                 ddi=ddi, ddd=ddd, celular=celular, whatsapp=whatsapp,
-                email=email, skype=skype, facebook=facebook,
-                instagram=instagram, exibir_dados=exibir_dados, senha=senha
+                email=email, facebook=facebook, instagram=instagram,
+                youtube=youtube, exibir_dados=exibir_dados, senha=senha
             )
             session["socio_id"] = socio_id
             session["socio_nome"] = nome
@@ -280,6 +334,7 @@ def login():
             flash(str(e), "erro")
             return render_template("login.html", cpf=cpf)
         except Exception as e:
+            logger.error(f"Erro no login: {e}")
             flash("Erro ao fazer login. Tente novamente.", "erro")
             return render_template("login.html", cpf=cpf)
     
@@ -842,12 +897,22 @@ def admin_resultado_manual_salvar():
             return redirect(request.referrer)
         
         with db._conexao() as conn:
-            insc = conn.execute("""
-                SELECT i.*, e.modalidade 
-                FROM inscricoes i
-                JOIN etapas e ON e.id = i.etapa_id
-                WHERE i.id = ?
-            """, (inscricao_id,)).fetchone()
+            if db.usar_postgres:
+                cur = conn.cursor()
+                cur.execute("""
+                    SELECT i.*, e.modalidade 
+                    FROM inscricoes i
+                    JOIN etapas e ON e.id = i.etapa_id
+                    WHERE i.id = %s
+                """, (inscricao_id,))
+                insc = cur.fetchone()
+            else:
+                insc = conn.execute("""
+                    SELECT i.*, e.modalidade 
+                    FROM inscricoes i
+                    JOIN etapas e ON e.id = i.etapa_id
+                    WHERE i.id = ?
+                """, (inscricao_id,)).fetchone()
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
@@ -881,7 +946,11 @@ def admin_resultado_manual_salvar():
 def admin_resultado_manual_excluir(resultado_id):
     try:
         with db._conexao() as conn:
-            conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
+            if db.usar_postgres:
+                cur = conn.cursor()
+                cur.execute("DELETE FROM resultados WHERE id = %s", (resultado_id,))
+            else:
+                conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
         flash("Resultado excluído com sucesso!", "sucesso")
     except Exception as e:
         flash(f"Erro ao excluir: {str(e)}", "erro")
@@ -1042,7 +1111,7 @@ def admin_upload_resultado():
             
             try:
                 if arquivo.filename.lower().endswith('.csv'):
-                    resultado = db.importar_csv_resultado(caminho_tmp, torneio_nome, categoria, data_etapa)
+                    db.importar_csv_resultado(caminho_tmp, torneio_nome, categoria, data_etapa)
                 else:
                     import pandas as pd
                     df = pd.read_excel(caminho_tmp)
@@ -1060,7 +1129,7 @@ def admin_upload_resultado():
                     if not resultados:
                         raise ValueError("Nenhum dado válido encontrado no Excel.")
                     
-                    resultado = db.importar_resultado_etapa(torneio_nome, categoria, data_etapa, resultados)
+                    db.importar_resultado_etapa(torneio_nome, categoria, data_etapa, resultados)
                 
                 os.unlink(caminho_tmp)
                 flash(f"Resultado importado com sucesso!", "sucesso")
@@ -1314,18 +1383,30 @@ def admin_rejeitar_edicao(edicao_id):
 def admin_cancelar_inscricao(inscricao_id):
     try:
         with db._conexao() as conn:
-            insc = conn.execute(
-                "SELECT passaro_id FROM inscricoes WHERE id = ?",
-                (inscricao_id,)
-            ).fetchone()
+            if db.usar_postgres:
+                cur = conn.cursor()
+                cur.execute("SELECT passaro_id FROM inscricoes WHERE id = %s", (inscricao_id,))
+                insc = cur.fetchone()
+            else:
+                insc = conn.execute(
+                    "SELECT passaro_id FROM inscricoes WHERE id = ?",
+                    (inscricao_id,)
+                ).fetchone()
+            
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
                 return redirect(request.referrer or url_for("area_socio"))
             
-            passaro = conn.execute(
-                "SELECT socio_id FROM passaros WHERE id = ?",
-                (insc["passaro_id"],)
-            ).fetchone()
+            if db.usar_postgres:
+                cur = conn.cursor()
+                cur.execute("SELECT socio_id FROM passaros WHERE id = %s", (insc["passaro_id"],))
+                passaro = cur.fetchone()
+            else:
+                passaro = conn.execute(
+                    "SELECT socio_id FROM passaros WHERE id = ?",
+                    (insc["passaro_id"],)
+                ).fetchone()
+            
             if not passaro:
                 flash("Pássaro não encontrado.", "erro")
                 return redirect(request.referrer or url_for("area_socio"))
@@ -1372,8 +1453,6 @@ def novo_passaro():
         sigla_criador = request.form.get("sigla_criador", "").strip().upper()
         numero_anilha = request.form.get("numero_anilha", "").strip()
         ano_anilha = request.form.get("ano_anilha", "").strip()
-        cor = request.form.get("cor", "").strip()
-        anotacoes = request.form.get("anotacoes", "").strip()
 
         try:
             db.cadastrar_passaro(
@@ -1381,16 +1460,21 @@ def novo_passaro():
                 nome=nome,
                 sigla_criador=sigla_criador,
                 numero_anilha=numero_anilha,
-                ano_anilha=ano_anilha,
-                cor=cor,
-                anotacoes=anotacoes
+                ano_anilha=ano_anilha
             )
+            return render_template("novo_passaro.html", 
+                                 passaro_cadastrado=nome,
+                                 nome="",
+                                 sigla_criador="",
+                                 numero_anilha="",
+                                 ano_anilha="")
         except (regras.ErroValidacao, ValueError) as e:
             flash(str(e), "erro")
-            return render_template("novo_passaro.html", **request.form)
-
-        flash(f"Pássaro '{nome}' cadastrado com sucesso!", "sucesso")
-        return redirect(url_for("area_socio"))
+            return render_template("novo_passaro.html", 
+                                 nome=nome,
+                                 sigla_criador=sigla_criador,
+                                 numero_anilha=numero_anilha,
+                                 ano_anilha=ano_anilha)
 
     return render_template("novo_passaro.html")
 
@@ -1406,10 +1490,15 @@ def editar_passaro(passaro_id):
         return redirect(url_for("area_socio"))
     
     with db._conexao() as conn:
-        participou = conn.execute(
-            "SELECT id FROM inscricoes WHERE passaro_id = ? LIMIT 1",
-            (passaro_id,)
-        ).fetchone()
+        if db.usar_postgres:
+            cur = conn.cursor()
+            cur.execute("SELECT id FROM inscricoes WHERE passaro_id = %s LIMIT 1", (passaro_id,))
+            participou = cur.fetchone()
+        else:
+            participou = conn.execute(
+                "SELECT id FROM inscricoes WHERE passaro_id = ? LIMIT 1",
+                (passaro_id,)
+            ).fetchone()
     
     if participou:
         if request.method == "POST":
@@ -1417,20 +1506,17 @@ def editar_passaro(passaro_id):
             sigla_criador = request.form.get("sigla_criador", "").strip().upper()
             numero_anilha = request.form.get("numero_anilha", "").strip()
             ano_anilha = request.form.get("ano_anilha", "").strip()
-            cor = request.form.get("cor", "").strip()
-            anotacoes = request.form.get("anotacoes", "").strip()
             
             try:
                 db.editar_passaro(socio_id, passaro_id, nome, sigla_criador, 
-                                 numero_anilha, ano_anilha, cor, anotacoes)
+                                 numero_anilha, ano_anilha)
                 flash("Solicitação de edição enviada para aprovação do administrador.", "sucesso")
                 return redirect(url_for("area_socio"))
             except (regras.ErroValidacao, ValueError) as e:
                 flash(str(e), "erro")
                 return render_template("editar_passaro.html", passaro=passaro, 
                                       nome=nome, sigla_criador=sigla_criador,
-                                      numero_anilha=numero_anilha, ano_anilha=ano_anilha,
-                                      cor=cor, anotacoes=anotacoes)
+                                      numero_anilha=numero_anilha, ano_anilha=ano_anilha)
         
         return render_template("editar_passaro.html", passaro=passaro, precisa_aprovacao=True)
     
@@ -1440,26 +1526,33 @@ def editar_passaro(passaro_id):
             sigla_criador = request.form.get("sigla_criador", "").strip().upper()
             numero_anilha = request.form.get("numero_anilha", "").strip()
             ano_anilha = request.form.get("ano_anilha", "").strip()
-            cor = request.form.get("cor", "").strip()
-            anotacoes = request.form.get("anotacoes", "").strip()
             
             try:
                 with db._conexao() as conn:
-                    conn.execute("""
-                        UPDATE passaros SET 
-                            nome = ?, sigla_criador = ?, numero_anilha = ?,
-                            ano_anilha = ?, cor = ?, anotacoes = ?
-                        WHERE id = ? AND socio_id = ?
-                    """, (nome, sigla_criador, numero_anilha, ano_anilha, cor, anotacoes, 
-                          passaro_id, socio_id))
+                    if db.usar_postgres:
+                        cur = conn.cursor()
+                        cur.execute("""
+                            UPDATE passaros SET 
+                                nome = %s, sigla_criador = %s, numero_anilha = %s,
+                                ano_anilha = %s
+                            WHERE id = %s AND socio_id = %s
+                        """, (nome, sigla_criador, numero_anilha, ano_anilha, 
+                              passaro_id, socio_id))
+                    else:
+                        conn.execute("""
+                            UPDATE passaros SET 
+                                nome = ?, sigla_criador = ?, numero_anilha = ?,
+                                ano_anilha = ?
+                            WHERE id = ? AND socio_id = ?
+                        """, (nome, sigla_criador, numero_anilha, ano_anilha, 
+                              passaro_id, socio_id))
                 flash("Pássaro atualizado com sucesso!", "sucesso")
                 return redirect(url_for("area_socio"))
             except (regras.ErroValidacao, ValueError) as e:
                 flash(str(e), "erro")
                 return render_template("editar_passaro.html", passaro=passaro,
                                       nome=nome, sigla_criador=sigla_criador,
-                                      numero_anilha=numero_anilha, ano_anilha=ano_anilha,
-                                      cor=cor, anotacoes=anotacoes)
+                                      numero_anilha=numero_anilha, ano_anilha=ano_anilha)
         
         return render_template("editar_passaro.html", passaro=passaro, precisa_aprovacao=False)
 
@@ -1488,31 +1581,52 @@ def editar_perfil():
         celular = request.form.get("celular", "").strip()
         whatsapp = request.form.get("whatsapp", "").strip()
         email = request.form.get("email", "").strip()
-        skype = request.form.get("skype", "").strip()
         facebook = request.form.get("facebook", "").strip()
         instagram = request.form.get("instagram", "").strip()
+        youtube = request.form.get("youtube", "").strip()
         exibir_dados = request.form.get("exibir_dados", "0") == "1"
         
         try:
             with db._conexao() as conn:
-                conn.execute("""
-                    UPDATE socios SET 
-                        nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
-                        cep = ?, endereco = ?, numero = ?, complemento = ?,
-                        bairro = ?, cidade = ?, uf = ?, pais = ?,
-                        ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
-                        email = ?, skype = ?, facebook = ?, instagram = ?,
-                        exibir_dados = ?
-                    WHERE id = ?
-                """, (
-                    nome, nascimento, sexo, criatorio,
-                    cep, endereco, numero, complemento,
-                    bairro, cidade, uf, pais,
-                    ddi, ddd, celular, whatsapp,
-                    email, skype, facebook, instagram,
-                    1 if exibir_dados else 0,
-                    socio_id
-                ))
+                if db.usar_postgres:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        UPDATE socios SET 
+                            nome = %s, nascimento = %s, sexo = %s, criatorio = %s,
+                            cep = %s, endereco = %s, numero = %s, complemento = %s,
+                            bairro = %s, cidade = %s, uf = %s, pais = %s,
+                            ddi = %s, ddd = %s, celular = %s, whatsapp = %s,
+                            email = %s, facebook = %s, instagram = %s, youtube = %s,
+                            exibir_dados = %s
+                        WHERE id = %s
+                    """, (
+                        nome, nascimento, sexo, criatorio,
+                        cep, endereco, numero, complemento,
+                        bairro, cidade, uf, pais,
+                        ddi, ddd, celular, whatsapp,
+                        email, facebook, instagram, youtube,
+                        1 if exibir_dados else 0,
+                        socio_id
+                    ))
+                else:
+                    conn.execute("""
+                        UPDATE socios SET 
+                            nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
+                            cep = ?, endereco = ?, numero = ?, complemento = ?,
+                            bairro = ?, cidade = ?, uf = ?, pais = ?,
+                            ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
+                            email = ?, facebook = ?, instagram = ?, youtube = ?,
+                            exibir_dados = ?
+                        WHERE id = ?
+                    """, (
+                        nome, nascimento, sexo, criatorio,
+                        cep, endereco, numero, complemento,
+                        bairro, cidade, uf, pais,
+                        ddi, ddd, celular, whatsapp,
+                        email, facebook, instagram, youtube,
+                        1 if exibir_dados else 0,
+                        socio_id
+                    ))
             
             session["socio_nome"] = nome
             flash("Perfil atualizado com sucesso!", "sucesso")
@@ -1707,23 +1821,32 @@ def buscar_cep(cep):
 # ================================================================
 def verificar_pagamentos():
     try:
+        logger.info("🔍 Verificando pagamentos pendentes...")
         cancelados = db.verificar_pagamentos_pendentes()
         if cancelados > 0:
-            print(f"✅ {cancelados} inscrições canceladas por falta de pagamento.")
+            logger.info(f"✅ {cancelados} inscrições canceladas por falta de pagamento.")
+        else:
+            logger.info("✅ Nenhum pagamento pendente.")
     except Exception as e:
-        print(f"❌ Erro ao verificar pagamentos: {e}")
+        logger.error(f"❌ Erro ao verificar pagamentos: {e}", exc_info=True)
 
 
 # ================================================================
 # INICIALIZAÇÃO
 # ================================================================
 if __name__ == "__main__":
+    logger.info("🚀 Iniciando servidor Flask...")
+    
     def verificar_periodicamente():
         while True:
-            verificar_pagamentos()
-            time.sleep(3600)
+            try:
+                verificar_pagamentos()
+            except Exception as e:
+                logger.error(f"❌ Erro na thread: {e}", exc_info=True)
+            time.sleep(3600)  # 1 hora
     
     thread = threading.Thread(target=verificar_periodicamente, daemon=True)
     thread.start()
+    logger.info("✅ Thread de verificação iniciada")
     
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=False)
