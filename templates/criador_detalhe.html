@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+    .detalhe-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 25px 30px;
+        background: #fff;
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    .detalhe-card .nome {
+        font-size: 28px;
+        font-weight: bold;
+        color: #2B3328;
+    }
+    .detalhe-card .criatorio {
+        font-size: 20px;
+        color: #C9980E;
+        margin-bottom: 15px;
+    }
+    .detalhe-card .info-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .detalhe-card .info-item:last-child {
+        border-bottom: none;
+    }
+    .detalhe-card .label {
+        font-weight: bold;
+        color: #888;
+        width: 100px;
+        display: inline-block;
+    }
+    .detalhe-card .valor {
+        color: #2B3328;
+    }
+</style>
+
+<div class="card">
+    <h2>👤 Detalhes do Criador</h2>
+</div>
+
+<div class="detalhe-card">
+    <div class="nome">{{ criador.nome }}</div>
+    {% if criador.criatorio %}
+        <div class="criatorio">🏠 {{ criador.criatorio }}</div>
+    {% endif %}
+    
+    <div style="margin-top: 15px;">
+        {% if criador.celular %}
+            <div class="info-item">
+                <span class="label">📱 Celular</span>
+                <span class="valor">{{ criador.ddi or '55' }}{{ criador.ddd or '' }} {{ criador.celular }}</span>
+            </div>
+        {% endif %}
+        {% if criador.whatsapp %}
+            <div class="info-item">
+                <span class="label">💬 WhatsApp</span>
+                <span class="valor">{{ criador.ddi or '55' }}{{ criador.ddd or '' }} {{ criador.whatsapp }}</span>
+            </div>
+        {% endif %}
+        {% if criador.email %}
+            <div class="info-item">
+                <span class="label">✉️ E-mail</span>
+                <span class="valor">{{ criador.email }}</span>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('listar_criadores') }}" class="btn btn-outline btn-sm">Voltar à Lista</a>
+</div>
+{% endblock %}

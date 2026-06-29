@@ -47,6 +47,42 @@ def admin_obrigatorio(view):
     return wrapper
 
 
+def admin_com_permissoes(permissoes_requeridas):
+    """Decorador que verifica se o admin tem permissão para acessar a rota."""
+    def decorator(view):
+        @functools.wraps(view)
+        def wrapper(*args, **kwargs):
+            if "admin_id" not in session:
+                flash("Acesso restrito à administração.", "erro")
+                return redirect(url_for("admin_login"))
+            
+            admin_id = session["admin_id"]
+            admin = db.obter_admin(admin_id)
+            if not admin:
+                flash("Administrador não encontrado.", "erro")
+                return redirect(url_for("admin_login"))
+            
+            nivel = admin["nivel"]
+            
+            if nivel == 1:
+                return view(*args, **kwargs)
+            
+            for permissao in permissoes_requeridas:
+                if permissao == "criar_admin" and nivel != 1:
+                    flash("Apenas Super Administradores podem criar novos admins.", "erro")
+                    return redirect(url_for("admin_dashboard"))
+                if permissao == "gerenciar_admins" and nivel > 2:
+                    flash("Você não tem permissão para gerenciar administradores.", "erro")
+                    return redirect(url_for("admin_dashboard"))
+                if permissao == "atualizar_sistema" and nivel != 1:
+                    flash("Apenas Super Administradores podem atualizar o sistema.", "erro")
+                    return redirect(url_for("admin_dashboard"))
+            
+            return view(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
 @app.context_processor
 def injetar_globais():
     return {
@@ -120,9 +156,13 @@ def ver_resultado_etapa(torneio_nome, data_etapa, categoria):
 @app.route("/ranking")
 def ranking_geral():
     """Página com ranking geral do campeonato."""
-    ranking = db.obter_ranking_geral_importado()
-    categorias = db.obter_categorias_disponiveis()
-    return render_template("ranking_geral.html", ranking=ranking, categorias=categorias)
+    try:
+        ranking = db.obter_ranking_geral_importado()
+        categorias = db.obter_categorias_disponiveis()
+        return render_template("ranking_geral.html", ranking=ranking, categorias=categorias)
+    except Exception as e:
+        print(f"Erro no ranking: {e}")
+        return render_template("ranking_geral.html", ranking=[], categorias=[])
 
 
 @app.route("/ranking/<categoria>")
@@ -137,6 +177,27 @@ def ranking_categoria(categoria):
 
 
 # ================================================================
+# CRIADORES
+# ================================================================
+@app.route("/criadores")
+def listar_criadores():
+    """Página com lista de criadores."""
+    busca = request.args.get("busca", "").strip()
+    criadores = db.listar_criadores(busca if busca else None)
+    return render_template("criadores.html", criadores=criadores, busca=busca)
+
+
+@app.route("/criador/<int:socio_id>")
+def ver_criador(socio_id):
+    """Página de detalhes de um criador."""
+    criador = db.obter_criador(socio_id)
+    if criador is None:
+        flash("Criador não encontrado ou não permite exibição pública.", "erro")
+        return redirect(url_for("listar_criadores"))
+    return render_template("criador_detalhe.html", criador=criador)
+
+
+# ================================================================
 # CADASTRO E LOGIN (SÓCIO)
 # ================================================================
 @app.route("/cadastro", methods=["GET", "POST"])
@@ -146,7 +207,7 @@ def cadastro():
         cpf = request.form.get("cpf", "").strip()
         nascimento = request.form.get("nascimento", "")
         sexo = request.form.get("sexo", "")
-        rg = request.form.get("rg", "").strip()
+        criatorio = request.form.get("criatorio", "").strip()
         sigla_clube = request.form.get("sigla_clube", "").strip().upper()
         numero_socio = request.form.get("numero_socio", "").strip()
         cep = request.form.get("cep", "").strip()
@@ -159,16 +220,12 @@ def cadastro():
         pais = request.form.get("pais", "").strip()
         ddi = request.form.get("ddi", "").strip()
         ddd = request.form.get("ddd", "").strip()
-        fone_residencial = request.form.get("fone_residencial", "").strip()
-        fone_comercial = request.form.get("fone_comercial", "").strip()
         celular = request.form.get("celular", "").strip()
         whatsapp = request.form.get("whatsapp", "").strip()
         email = request.form.get("email", "").strip()
         skype = request.form.get("skype", "").strip()
         facebook = request.form.get("facebook", "").strip()
         instagram = request.form.get("instagram", "").strip()
-        site = request.form.get("site", "").strip()
-        anotacoes = request.form.get("anotacoes", "").strip()
         exibir_dados = request.form.get("exibir_dados", "0") == "1"
         senha = request.form.get("senha", "")
         confirmar = request.form.get("confirmar_senha", "")
@@ -179,15 +236,14 @@ def cadastro():
 
         try:
             socio_id = db.criar_socio(
-                nome=nome, cpf=cpf, nascimento=nascimento, sexo=sexo, rg=rg,
+                nome=nome, cpf=cpf, nascimento=nascimento, sexo=sexo,
+                criatorio=criatorio,
                 sigla_clube=sigla_clube, numero_socio=numero_socio,
                 cep=cep, endereco=endereco, numero=numero, complemento=complemento,
                 bairro=bairro, cidade=cidade, uf=uf, pais=pais,
-                ddi=ddi, ddd=ddd, fone_residencial=fone_residencial,
-                fone_comercial=fone_comercial, celular=celular, whatsapp=whatsapp,
+                ddi=ddi, ddd=ddd, celular=celular, whatsapp=whatsapp,
                 email=email, skype=skype, facebook=facebook,
-                instagram=instagram, site=site, anotacoes=anotacoes,
-                exibir_dados=exibir_dados, senha=senha
+                instagram=instagram, exibir_dados=exibir_dados, senha=senha
             )
             session["socio_id"] = socio_id
             session["socio_nome"] = nome
@@ -205,13 +261,28 @@ def login():
     if request.method == "POST":
         cpf = request.form.get("cpf", "").strip()
         senha = request.form.get("senha", "")
-        socio = db.autenticar_socio(cpf, senha)
-        if socio is None:
-            flash("CPF ou senha incorretos.", "erro")
+        
+        if not cpf:
+            flash("Por favor, digite seu CPF.", "erro")
             return render_template("login.html", cpf=cpf)
-        session["socio_id"] = socio["id"]
-        session["socio_nome"] = socio["nome"]
-        return redirect(url_for("area_socio"))
+        
+        try:
+            socio = db.autenticar_socio(cpf, senha)
+            if socio is None:
+                flash("CPF ou senha incorretos.", "erro")
+                return render_template("login.html", cpf=cpf)
+            
+            session["socio_id"] = socio["id"]
+            session["socio_nome"] = socio["nome"]
+            return redirect(url_for("area_socio"))
+            
+        except regras.ErroValidacao as e:
+            flash(str(e), "erro")
+            return render_template("login.html", cpf=cpf)
+        except Exception as e:
+            flash("Erro ao fazer login. Tente novamente.", "erro")
+            return render_template("login.html", cpf=cpf)
+    
     return render_template("login.html")
 
 
@@ -235,6 +306,7 @@ def admin_login():
             return render_template("admin_login.html", email=email)
         session["admin_id"] = admin["id"]
         session["admin_nome"] = admin["nome"]
+        session["admin_nivel"] = admin["nivel"]
         return redirect(url_for("admin_dashboard"))
     return render_template("admin_login.html")
 
@@ -243,31 +315,8 @@ def admin_login():
 def admin_logout():
     session.pop("admin_id", None)
     session.pop("admin_nome", None)
+    session.pop("admin_nivel", None)
     return redirect(url_for("home"))
-
-
-@app.route("/admin/criar", methods=["GET", "POST"])
-@admin_obrigatorio
-def admin_criar():
-    if request.method == "POST":
-        nome = request.form.get("nome", "").strip()
-        email = request.form.get("email", "").strip()
-        senha = request.form.get("senha", "")
-        confirmar = request.form.get("confirmar_senha", "")
-        
-        if senha != confirmar:
-            flash("As senhas não coincidem.", "erro")
-            return render_template("admin_criar.html", nome=nome, email=email)
-        
-        try:
-            db.criar_admin(nome, email, senha)
-            flash(f"Administrador '{nome}' criado com sucesso!", "sucesso")
-            return redirect(url_for("admin_dashboard"))
-        except (regras.ErroValidacao, ValueError) as e:
-            flash(str(e), "erro")
-            return render_template("admin_criar.html", nome=nome, email=email)
-    
-    return render_template("admin_criar.html")
 
 
 @app.route("/admin/trocar-senha", methods=["GET", "POST"])
@@ -299,12 +348,87 @@ def admin_trocar_senha():
 @app.route("/admin")
 @admin_obrigatorio
 def admin_dashboard():
+    admin_id = session["admin_id"]
+    admin = db.obter_admin(admin_id)
+    
     torneios = db.listar_torneios()
     festivos = db.listar_festivos()
     edicoes = db.listar_edicoes_pendentes()
-    return render_template("admin_dashboard.html", torneios=torneios, festivos=festivos, edicoes=edicoes)
+    admins = db.listar_admins() if admin["nivel"] <= 2 else []
+    
+    return render_template("admin_dashboard.html", 
+                          torneios=torneios, 
+                          festivos=festivos, 
+                          edicoes=edicoes,
+                          admins=admins,
+                          admin_nivel=admin["nivel"])
 
 
+@app.route("/admin/criar", methods=["GET", "POST"])
+@admin_com_permissoes(["criar_admin"])
+def admin_criar():
+    if request.method == "POST":
+        nome = request.form.get("nome", "").strip()
+        email = request.form.get("email", "").strip()
+        senha = request.form.get("senha", "")
+        confirmar = request.form.get("confirmar_senha", "")
+        nivel = int(request.form.get("nivel", 2))
+        
+        if senha != confirmar:
+            flash("As senhas não coincidem.", "erro")
+            return render_template("admin_criar.html", nome=nome, email=email)
+        
+        try:
+            db.criar_admin(nome, email, senha, nivel)
+            flash(f"Administrador '{nome}' criado com sucesso! Nível: {nivel}", "sucesso")
+            return redirect(url_for("admin_dashboard"))
+        except (regras.ErroValidacao, ValueError) as e:
+            flash(str(e), "erro")
+            return render_template("admin_criar.html", nome=nome, email=email)
+    
+    return render_template("admin_criar.html")
+
+
+@app.route("/admin/gerenciar")
+@admin_com_permissoes(["gerenciar_admins"])
+def admin_gerenciar():
+    admins = db.listar_admins()
+    return render_template("admin_gerenciar.html", admins=admins)
+
+
+@app.route("/admin/excluir/<int:admin_id>", methods=["POST"])
+@admin_com_permissoes(["criar_admin"])
+def admin_excluir(admin_id):
+    try:
+        db.excluir_admin(admin_id)
+        flash("Administrador excluído com sucesso.", "sucesso")
+    except ValueError as e:
+        flash(str(e), "erro")
+    return redirect(url_for("admin_gerenciar"))
+
+
+@app.route("/admin/alterar-nivel/<int:admin_id>", methods=["POST"])
+@admin_com_permissoes(["criar_admin"])
+def admin_alterar_nivel(admin_id):
+    try:
+        novo_nivel = int(request.form.get("nivel", 2))
+        db.alterar_nivel_admin(admin_id, novo_nivel, session["admin_id"])
+        flash(f"Nível alterado para {novo_nivel}.", "sucesso")
+    except ValueError as e:
+        flash(str(e), "erro")
+    return redirect(url_for("admin_gerenciar"))
+
+
+@app.route("/admin/atualizar-sistema")
+@admin_com_permissoes(["atualizar_sistema"])
+def admin_atualizar_sistema():
+    flash("Sistema atualizado com sucesso!", "sucesso")
+    return redirect(url_for("admin_dashboard"))
+
+
+# ================================================================
+# ADMIN - TORNEIOS
+# ================================================================
 @app.route("/admin/torneios/novo", methods=["GET", "POST"])
 @admin_obrigatorio
 def admin_novo_torneio():
@@ -526,7 +650,6 @@ def admin_toggle_inscricoes(etapa_id):
 @app.route("/admin/etapa/<int:etapa_id>/lista-apresentacao")
 @admin_obrigatorio
 def admin_lista_apresentacao(etapa_id):
-    """Gera a lista de apresentação com duas colunas: ordem sequencial e ordem do sistema."""
     etapa = db.obter_etapa(etapa_id)
     if etapa is None:
         flash("Etapa não encontrada.", "erro")
@@ -553,7 +676,6 @@ def admin_lista_apresentacao(etapa_id):
 @app.route("/admin/etapa/<int:etapa_id>/exportar-lista")
 @admin_obrigatorio
 def admin_exportar_lista_apresentacao(etapa_id):
-    """Exporta lista de apresentação para Excel (formato padrão)."""
     try:
         import openpyxl
         from openpyxl.styles import Font, Alignment
@@ -610,7 +732,6 @@ def admin_exportar_lista_apresentacao(etapa_id):
 @app.route("/admin/etapa/<int:etapa_id>/exportar-lista-livre")
 @admin_obrigatorio
 def admin_exportar_lista_livre(etapa_id):
-    """Exporta lista de apresentação para LIVRE no formato do Marcador Digital."""
     try:
         import openpyxl
         from openpyxl.styles import Font, Alignment
@@ -626,12 +747,10 @@ def admin_exportar_lista_livre(etapa_id):
         
         inscritos = db.listar_inscritos_na_etapa(etapa_id)
         
-        # Ordena pela ordem (ordem/estaca) - numérica crescente
         inscritos_ordenados = sorted(
             [ins for ins in inscritos if ins["ordem"] is not None],
             key=lambda x: x["ordem"]
         )
-        # Adiciona os que não têm ordem no final
         sem_ordem = [ins for ins in inscritos if ins["ordem"] is None]
         inscritos_ordenados.extend(sem_ordem)
         
@@ -639,20 +758,17 @@ def admin_exportar_lista_livre(etapa_id):
         ws = wb.active
         ws.title = "Lista Apresentacao"
         
-        # Cabeçalho - APENAS NOME, ANILHA, PROPRIETÁRIO
         headers = ["NOME", "ANILHA", "PROPRIETÁRIO"]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = Font(bold=True, size=12)
             cell.alignment = Alignment(horizontal="center")
         
-        # Dados - ordenados pela ordem de apresentação
         for row, ins in enumerate(inscritos_ordenados, 2):
             ws.cell(row=row, column=1, value=ins["passaro_nome"])
             ws.cell(row=row, column=2, value=ins["codigo_ave"])
             ws.cell(row=row, column=3, value=ins["socio_nome"])
         
-        # Ajusta largura
         ws.column_dimensions['A'].width = 30
         ws.column_dimensions['B'].width = 25
         ws.column_dimensions['C'].width = 30
@@ -685,7 +801,6 @@ def admin_exportar_lista_livre(etapa_id):
 @app.route("/admin/etapa/<int:etapa_id>/resultado-manual", methods=["GET", "POST"])
 @admin_obrigatorio
 def admin_resultado_manual(etapa_id):
-    """Painel para inserir resultados manualmente."""
     etapa = db.obter_etapa(etapa_id)
     if etapa is None:
         flash("Etapa não encontrada.", "erro")
@@ -716,7 +831,6 @@ def admin_resultado_manual(etapa_id):
 @app.route("/admin/resultado-manual/salvar", methods=["POST"])
 @admin_obrigatorio
 def admin_resultado_manual_salvar():
-    """Salva um resultado manual individual."""
     try:
         inscricao_id = request.form.get("inscricao_id", type=int)
         posicao = request.form.get("posicao", type=int)
@@ -765,7 +879,6 @@ def admin_resultado_manual_salvar():
 @app.route("/admin/resultado-manual/<int:resultado_id>/excluir", methods=["POST"])
 @admin_obrigatorio
 def admin_resultado_manual_excluir(resultado_id):
-    """Exclui um resultado manual."""
     try:
         with db._conexao() as conn:
             conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
@@ -781,7 +894,6 @@ def admin_resultado_manual_excluir(resultado_id):
 @app.route("/admin/etapa/<int:etapa_id>/resultados", methods=["GET", "POST"])
 @admin_obrigatorio
 def admin_resultados_etapa(etapa_id):
-    """Painel admin para inserir notas e resultados."""
     etapa = db.obter_etapa(etapa_id)
     if etapa is None:
         flash("Etapa não encontrada.", "erro")
@@ -824,7 +936,6 @@ def admin_resultados_etapa(etapa_id):
 @app.route("/admin/resultados")
 @admin_obrigatorio
 def admin_resultados():
-    """Painel admin para gerenciar resultados importados."""
     etapas = db.listar_etapas_importadas()
     return render_template("admin_resultados.html", etapas=etapas)
 
@@ -832,7 +943,6 @@ def admin_resultados():
 @app.route("/admin/resultados/importar", methods=["GET", "POST"])
 @admin_obrigatorio
 def admin_importar_resultado():
-    """Importa um resultado de etapa via texto."""
     if request.method == "POST":
         try:
             torneio_nome = request.form.get("torneio_nome", "").strip()
@@ -899,7 +1009,6 @@ def admin_importar_resultado():
 @app.route("/admin/resultados/upload", methods=["GET", "POST"])
 @admin_obrigatorio
 def admin_upload_resultado():
-    """Upload de arquivo CSV/Excel gerado pelo Marcador Digital."""
     if request.method == "POST":
         try:
             if 'arquivo' not in request.files:
@@ -972,7 +1081,6 @@ def admin_upload_resultado():
 @app.route("/admin/resultados/editar/<torneio_nome>/<data_etapa>/<categoria>", methods=["GET", "POST"])
 @admin_obrigatorio
 def admin_editar_resultado(torneio_nome, data_etapa, categoria):
-    """Edita um resultado de etapa existente."""
     if request.method == "POST":
         try:
             dados = request.form.get("dados", "").strip()
@@ -1050,7 +1158,6 @@ def admin_editar_resultado(torneio_nome, data_etapa, categoria):
 @app.route("/admin/resultados/excluir", methods=["POST"])
 @admin_obrigatorio
 def admin_excluir_etapa():
-    """Exclui uma etapa importada."""
     torneio_nome = request.form.get("torneio_nome", "").strip()
     data_etapa = request.form.get("data_etapa", "")
     categoria = request.form.get("categoria", "").strip()
@@ -1067,7 +1174,6 @@ def admin_excluir_etapa():
 @app.route("/admin/resultados/exportar/<torneio_nome>/<data_etapa>/<categoria>")
 @admin_obrigatorio
 def admin_exportar_inscritos(torneio_nome, data_etapa, categoria):
-    """Exporta lista de inscritos para Excel."""
     try:
         import openpyxl
         from openpyxl.styles import Font, Alignment
@@ -1124,7 +1230,6 @@ def admin_exportar_inscritos(torneio_nome, data_etapa, categoria):
 @app.route("/admin/transferencias")
 @admin_obrigatorio
 def admin_transferencias():
-    """Painel admin para gerenciar transferências."""
     transferencias = db.listar_transferencias_pendentes()
     return render_template("admin_transferencias.html", transferencias=transferencias)
 
@@ -1199,6 +1304,37 @@ def admin_rejeitar_edicao(edicao_id):
     except ValueError as e:
         flash(str(e), "erro")
     return redirect(url_for("admin_dashboard"))
+
+
+# ================================================================
+# ADMIN - CANCELAR INSCRIÇÃO
+# ================================================================
+@app.route("/admin/inscricao/<int:inscricao_id>/cancelar", methods=["POST"])
+@admin_obrigatorio
+def admin_cancelar_inscricao(inscricao_id):
+    try:
+        with db._conexao() as conn:
+            insc = conn.execute(
+                "SELECT passaro_id FROM inscricoes WHERE id = ?",
+                (inscricao_id,)
+            ).fetchone()
+            if not insc:
+                flash("Inscrição não encontrada.", "erro")
+                return redirect(request.referrer or url_for("area_socio"))
+            
+            passaro = conn.execute(
+                "SELECT socio_id FROM passaros WHERE id = ?",
+                (insc["passaro_id"],)
+            ).fetchone()
+            if not passaro:
+                flash("Pássaro não encontrado.", "erro")
+                return redirect(request.referrer or url_for("area_socio"))
+        
+        db.cancelar_inscricao(inscricao_id, passaro["socio_id"])
+        flash("Inscrição cancelada pelo administrador com sucesso!", "sucesso")
+    except (regras.ErroValidacao, ValueError) as e:
+        flash(str(e), "erro")
+    return redirect(request.referrer or url_for("area_socio"))
 
 
 # ================================================================
@@ -1338,7 +1474,7 @@ def editar_perfil():
         nome = request.form.get("nome", "").strip()
         nascimento = request.form.get("nascimento", "")
         sexo = request.form.get("sexo", "")
-        rg = request.form.get("rg", "").strip()
+        criatorio = request.form.get("criatorio", "").strip()
         cep = request.form.get("cep", "").strip()
         endereco = request.form.get("endereco", "").strip()
         numero = request.form.get("numero", "").strip()
@@ -1349,37 +1485,31 @@ def editar_perfil():
         pais = request.form.get("pais", "").strip()
         ddi = request.form.get("ddi", "").strip()
         ddd = request.form.get("ddd", "").strip()
-        fone_residencial = request.form.get("fone_residencial", "").strip()
-        fone_comercial = request.form.get("fone_comercial", "").strip()
         celular = request.form.get("celular", "").strip()
         whatsapp = request.form.get("whatsapp", "").strip()
         email = request.form.get("email", "").strip()
         skype = request.form.get("skype", "").strip()
         facebook = request.form.get("facebook", "").strip()
         instagram = request.form.get("instagram", "").strip()
-        site = request.form.get("site", "").strip()
-        anotacoes = request.form.get("anotacoes", "").strip()
         exibir_dados = request.form.get("exibir_dados", "0") == "1"
         
         try:
             with db._conexao() as conn:
                 conn.execute("""
                     UPDATE socios SET 
-                        nome = ?, nascimento = ?, sexo = ?, rg = ?,
+                        nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
                         cep = ?, endereco = ?, numero = ?, complemento = ?,
                         bairro = ?, cidade = ?, uf = ?, pais = ?,
-                        ddi = ?, ddd = ?, fone_residencial = ?, fone_comercial = ?,
-                        celular = ?, whatsapp = ?, email = ?, skype = ?,
-                        facebook = ?, instagram = ?, site = ?, anotacoes = ?,
+                        ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
+                        email = ?, skype = ?, facebook = ?, instagram = ?,
                         exibir_dados = ?
                     WHERE id = ?
                 """, (
-                    nome, nascimento, sexo, rg,
+                    nome, nascimento, sexo, criatorio,
                     cep, endereco, numero, complemento,
                     bairro, cidade, uf, pais,
-                    ddi, ddd, fone_residencial, fone_comercial,
-                    celular, whatsapp, email, skype,
-                    facebook, instagram, site, anotacoes,
+                    ddi, ddd, celular, whatsapp,
+                    email, skype, facebook, instagram,
                     1 if exibir_dados else 0,
                     socio_id
                 ))
@@ -1523,35 +1653,6 @@ def cancelar_inscricao(inscricao_id):
     except (regras.ErroValidacao, ValueError) as e:
         flash(str(e), "erro")
     return redirect(url_for("area_socio"))
-
-
-@app.route("/admin/inscricao/<int:inscricao_id>/cancelar", methods=["POST"])
-@admin_obrigatorio
-def admin_cancelar_inscricao(inscricao_id):
-    """Admin cancela qualquer inscrição (inclusive com ordem)."""
-    try:
-        with db._conexao() as conn:
-            insc = conn.execute(
-                "SELECT passaro_id FROM inscricoes WHERE id = ?",
-                (inscricao_id,)
-            ).fetchone()
-            if not insc:
-                flash("Inscrição não encontrada.", "erro")
-                return redirect(request.referrer or url_for("area_socio"))
-            
-            passaro = conn.execute(
-                "SELECT socio_id FROM passaros WHERE id = ?",
-                (insc["passaro_id"],)
-            ).fetchone()
-            if not passaro:
-                flash("Pássaro não encontrado.", "erro")
-                return redirect(request.referrer or url_for("area_socio"))
-        
-        db.cancelar_inscricao(inscricao_id, passaro["socio_id"])
-        flash("Inscrição cancelada pelo administrador com sucesso!", "sucesso")
-    except (regras.ErroValidacao, ValueError) as e:
-        flash(str(e), "erro")
-    return redirect(request.referrer or url_for("area_socio"))
 
 
 @app.route("/area-socio/pagamento/<int:inscricao_id>", methods=["GET", "POST"])

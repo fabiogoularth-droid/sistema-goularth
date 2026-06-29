@@ -380,6 +380,7 @@
         </div>
         <div class="nav">
             <a href="{{ url_for('home') }}">🏠 Início</a>
+            <a href="{{ url_for('listar_criadores') }}">👥 Criadores</a>
             <a href="{{ url_for('listar_resultados') }}">🏆 Resultados</a>
             <a href="{{ url_for('ranking_geral') }}">📊 Ranking</a>
             {% if session.socio_id %}

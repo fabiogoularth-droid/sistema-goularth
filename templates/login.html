@@ -3,19 +3,25 @@
 {% block content %}
 <div class="card" style="max-width: 480px; margin: 0 auto;">
     <h2>🔑 Entrar</h2>
+    <p class="text-muted">Digite seu CPF e senha para acessar sua conta.</p>
     <form method="POST">
         <div class="form-group">
-            <label>CPF</label>
+            <label>CPF *</label>
             <input type="text" name="cpf" placeholder="000.000.000-00" value="{{ cpf or '' }}" required>
+            <div class="hint">Apenas números (11 dígitos)</div>
         </div>
         <div class="form-group">
-            <label>Senha</label>
+            <label>Senha *</label>
             <input type="password" name="senha" required>
         </div>
         <button type="submit" class="btn btn-dourado" style="width: 100%;">Entrar</button>
     </form>
     <p class="text-center mt-20">
         <a href="{{ url_for('cadastro') }}">Ainda não tem cadastro? Clique aqui</a>
+    </p>
+    <hr style="margin: 20px 0;">
+    <p class="text-center" style="font-size: 13px; color: #888;">
+        <strong>Administrador:</strong> Acesse <a href="{{ url_for('admin_login') }}">Painel Admin</a>
     </p>
 </div>
 {% endblock %}

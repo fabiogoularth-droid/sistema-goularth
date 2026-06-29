@@ -38,6 +38,7 @@ class BancoClube:
         self.caminho_banco = caminho_banco
         self._criar_tabelas()
         self._criar_admin_inicial()
+        self._migrar_banco()
 
     @contextmanager
     def _conexao(self):
@@ -59,7 +60,7 @@ class BancoClube:
                     cpf TEXT NOT NULL UNIQUE,
                     nascimento TEXT,
                     sexo TEXT,
-                    rg TEXT,
+                    criatorio TEXT,
                     sigla_clube TEXT NOT NULL,
                     numero_socio TEXT NOT NULL,
                     codigo_socio TEXT NOT NULL UNIQUE,
@@ -73,16 +74,12 @@ class BancoClube:
                     pais TEXT,
                     ddi TEXT,
                     ddd TEXT,
-                    fone_residencial TEXT,
-                    fone_comercial TEXT,
                     celular TEXT,
                     whatsapp TEXT,
                     email TEXT,
                     skype TEXT,
                     facebook TEXT,
                     instagram TEXT,
-                    site TEXT,
-                    anotacoes TEXT,
                     exibir_dados INTEGER DEFAULT 0,
                     senha_hash TEXT NOT NULL,
                     criado_em TEXT NOT NULL
@@ -200,6 +197,7 @@ class BancoClube:
                     nome TEXT NOT NULL,
                     email TEXT NOT NULL UNIQUE,
                     senha_hash TEXT NOT NULL,
+                    nivel INTEGER DEFAULT 2,
                     criado_em TEXT NOT NULL
                 );
 
@@ -237,13 +235,33 @@ class BancoClube:
             if not existe:
                 senha_hash = _hash_senha("admin123")
                 conn.execute(
-                    "INSERT INTO admin (nome, email, senha_hash, criado_em) VALUES (?, ?, ?, ?)",
+                    "INSERT INTO admin (nome, email, senha_hash, nivel, criado_em) VALUES (?, ?, ?, 1, ?)",
                     ("Administrador", "admin@clube.com", senha_hash, datetime.datetime.now().isoformat())
                 )
+
+    def _migrar_banco(self):
+        """Adiciona a coluna criatorio se ela não existir."""
+        try:
+            with self._conexao() as conn:
+                colunas = conn.execute("PRAGMA table_info(socios)").fetchall()
+                colunas_existentes = [c["name"] for c in colunas]
+                
+                if "criatorio" not in colunas_existentes:
+                    conn.execute("ALTER TABLE socios ADD COLUMN criatorio TEXT")
+                    print("✅ Coluna 'criatorio' adicionada com sucesso!")
+                else:
+                    print("ℹ️ Coluna 'criatorio' já existe.")
+        except Exception as e:
+            print(f"❌ Erro na migração: {e}")
 
     # ================================================================
     # ADMIN
     # ================================================================
+    def obter_admin(self, admin_id):
+        with self._conexao() as conn:
+            linha = conn.execute("SELECT * FROM admin WHERE id = ?", (admin_id,)).fetchone()
+            return dict(linha) if linha else None
+
     def autenticar_admin(self, email, senha):
         with self._conexao() as conn:
             linha = conn.execute("SELECT * FROM admin WHERE email = ?", (email,)).fetchone()
@@ -262,7 +280,7 @@ class BancoClube:
                 (_hash_senha(nova_senha), admin_id)
             )
 
-    def criar_admin(self, nome, email, senha):
+    def criar_admin(self, nome, email, senha, nivel=2):
         if not nome or not email or not senha:
             raise regras.ErroValidacao("Todos os campos são obrigatórios.")
         if len(senha) < 6:
@@ -272,14 +290,38 @@ class BancoClube:
             if existe:
                 raise ValueError("Já existe um administrador com este email.")
             conn.execute(
-                "INSERT INTO admin (nome, email, senha_hash, criado_em) VALUES (?, ?, ?, ?)",
-                (nome, email, _hash_senha(senha), datetime.datetime.now().isoformat())
+                "INSERT INTO admin (nome, email, senha_hash, nivel, criado_em) VALUES (?, ?, ?, ?, ?)",
+                (nome, email, _hash_senha(senha), nivel, datetime.datetime.now().isoformat())
             )
 
     def listar_admins(self):
         with self._conexao() as conn:
-            linhas = conn.execute("SELECT id, nome, email, criado_em FROM admin").fetchall()
+            linhas = conn.execute("SELECT id, nome, email, nivel, criado_em FROM admin ORDER BY nivel").fetchall()
             return [dict(l) for l in linhas]
+
+    def excluir_admin(self, admin_id):
+        with self._conexao() as conn:
+            admin = conn.execute("SELECT nivel FROM admin WHERE id = ?", (admin_id,)).fetchone()
+            if admin and admin["nivel"] == 1:
+                raise ValueError("Não é possível excluir o Super Administrador.")
+            conn.execute("DELETE FROM admin WHERE id = ?", (admin_id,))
+
+    def alterar_nivel_admin(self, admin_id, novo_nivel, admin_requisitante_id):
+        with self._conexao() as conn:
+            requisitante = conn.execute("SELECT nivel FROM admin WHERE id = ?", (admin_requisitante_id,)).fetchone()
+            if not requisitante or requisitante["nivel"] != 1:
+                raise ValueError("Apenas Super Administradores podem alterar níveis.")
+            
+            if admin_id == admin_requisitante_id:
+                raise ValueError("Não é possível alterar seu próprio nível.")
+            
+            admin = conn.execute("SELECT nivel FROM admin WHERE id = ?", (admin_id,)).fetchone()
+            if not admin:
+                raise ValueError("Administrador não encontrado.")
+            if admin["nivel"] == 1:
+                raise ValueError("Não é possível alterar o nível do Super Administrador.")
+            
+            conn.execute("UPDATE admin SET nivel = ? WHERE id = ?", (novo_nivel, admin_id))
 
     # ================================================================
     # TORNEIOS
@@ -456,24 +498,22 @@ class BancoClube:
 
             cursor = conn.execute("""
                 INSERT INTO socios (
-                    nome, cpf, nascimento, sexo, rg,
+                    nome, cpf, nascimento, sexo, criatorio,
                     sigla_clube, numero_socio, codigo_socio,
                     cep, endereco, numero, complemento, bairro, cidade, uf, pais,
-                    ddi, ddd, fone_residencial, fone_comercial, celular, whatsapp,
-                    email, skype, facebook, instagram, site, anotacoes, exibir_dados,
+                    ddi, ddd, celular, whatsapp, email,
+                    skype, facebook, instagram, exibir_dados,
                     senha_hash, criado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                nome, cpf, dados.get("nascimento"), dados.get("sexo"), dados.get("rg"),
+                nome, cpf, dados.get("nascimento"), dados.get("sexo"), dados.get("criatorio"),
                 sigla_clube, numero_socio, codigo_socio,
                 dados.get("cep"), dados.get("endereco"), dados.get("numero"),
                 dados.get("complemento"), dados.get("bairro"), dados.get("cidade"),
                 dados.get("uf"), dados.get("pais"),
-                dados.get("ddi"), dados.get("ddd"), dados.get("fone_residencial"),
-                dados.get("fone_comercial"), dados.get("celular"), dados.get("whatsapp"),
+                dados.get("ddi"), dados.get("ddd"), dados.get("celular"), dados.get("whatsapp"),
                 dados.get("email"), dados.get("skype"), dados.get("facebook"),
-                dados.get("instagram"), dados.get("site"), dados.get("anotacoes"),
-                1 if dados.get("exibir_dados") else 0,
+                dados.get("instagram"), 1 if dados.get("exibir_dados") else 0,
                 _hash_senha(senha), datetime.datetime.now().isoformat()
             ))
             return cursor.lastrowid
@@ -634,7 +674,7 @@ class BancoClube:
             )
 
     # ================================================================
-    # RESULTADOS (do sistema interno)
+    # RESULTADOS
     # ================================================================
     def salvar_resultado_inscricao(self, inscricao_id, notas, classificacao=None):
         with self._conexao() as conn:
@@ -843,25 +883,22 @@ class BancoClube:
             return [dict(l) for l in linhas]
 
     # ================================================================
-    # RESULTADOS IMPORTADOS (Etapas já realizadas)
+    # RESULTADOS IMPORTADOS
     # ================================================================
     def importar_resultado_etapa(self, torneio_nome, categoria, data_etapa, resultados):
         """Importa um resultado de etapa completo."""
         with self._conexao() as conn:
-            # Verifica se já existe esta etapa
             existente = conn.execute(
                 "SELECT id FROM resultados_importados WHERE torneio_nome = ? AND data_etapa = ? AND categoria = ? LIMIT 1",
                 (torneio_nome, data_etapa, categoria)
             ).fetchone()
             
             if existente:
-                # Remove os resultados antigos
                 conn.execute(
                     "DELETE FROM resultados_importados WHERE torneio_nome = ? AND data_etapa = ? AND categoria = ?",
                     (torneio_nome, data_etapa, categoria)
                 )
             
-            # Insere os novos resultados
             for r in resultados:
                 conn.execute("""
                     INSERT INTO resultados_importados 
@@ -887,14 +924,12 @@ class BancoClube:
         
         linhas = [l.strip() for l in linhas if l.strip()]
         
-        # Encontra o início dos dados
         inicio = 0
         for i, linha in enumerate(linhas):
             if 'Posição' in linha or 'Posicao' in linha:
                 inicio = i + 1
                 break
         
-        # Se não encontrou cabeçalho, começa da linha 3
         if inicio == 0:
             inicio = 3
         
@@ -906,7 +941,6 @@ class BancoClube:
             if len(partes) < 5:
                 continue
             
-            # Remove º da posição
             pos_str = re.sub(r'[°º]', '', partes[0])
             try:
                 posicao = int(pos_str)
@@ -985,57 +1019,68 @@ class BancoClube:
 
     def obter_ranking_geral_importado(self, categoria=None):
         """Retorna o ranking geral acumulado de todas as etapas importadas."""
-        with self._conexao() as conn:
-            if categoria:
-                query = """
-                    SELECT 
-                        passaro_nome,
-                        anilha,
-                        proprietario,
-                        SUM(pontos) as total_pontos,
-                        COUNT(*) as etapas_participadas,
-                        GROUP_CONCAT(pontos ORDER BY data_etapa) as pontos_por_etapa,
-                        GROUP_CONCAT(data_etapa ORDER BY data_etapa) as etapas_datas
-                    FROM resultados_importados
-                    WHERE categoria = ?
-                    GROUP BY passaro_nome, anilha, proprietario
-                    ORDER BY total_pontos DESC
-                """
-                linhas = conn.execute(query, (categoria,)).fetchall()
-            else:
-                query = """
-                    SELECT 
-                        passaro_nome,
-                        anilha,
-                        proprietario,
-                        SUM(pontos) as total_pontos,
-                        COUNT(*) as etapas_participadas,
-                        GROUP_CONCAT(pontos ORDER BY data_etapa) as pontos_por_etapa,
-                        GROUP_CONCAT(data_etapa ORDER BY data_etapa) as etapas_datas
-                    FROM resultados_importados
-                    GROUP BY passaro_nome, anilha, proprietario
-                    ORDER BY total_pontos DESC
-                """
-                linhas = conn.execute(query).fetchall()
-            
-            resultado = []
-            for l in linhas:
-                d = dict(l)
-                pontos_str = d["pontos_por_etapa"] or ""
-                datas_str = d["etapas_datas"] or ""
-                d["pontos_por_etapa"] = pontos_str.split(",") if pontos_str else []
-                d["etapas_datas"] = datas_str.split(",") if datas_str else []
-                resultado.append(d)
-            
-            return resultado
+        try:
+            with self._conexao() as conn:
+                total = conn.execute("SELECT COUNT(*) as total FROM resultados_importados").fetchone()
+                if total["total"] == 0:
+                    return []
+                
+                if categoria:
+                    query = """
+                        SELECT 
+                            passaro_nome,
+                            anilha,
+                            proprietario,
+                            SUM(pontos) as total_pontos,
+                            COUNT(*) as etapas_participadas,
+                            GROUP_CONCAT(pontos) as pontos_por_etapa,
+                            GROUP_CONCAT(data_etapa) as etapas_datas
+                        FROM resultados_importados
+                        WHERE categoria = ?
+                        GROUP BY passaro_nome, anilha, proprietario
+                        ORDER BY total_pontos DESC
+                    """
+                    linhas = conn.execute(query, (categoria,)).fetchall()
+                else:
+                    query = """
+                        SELECT 
+                            passaro_nome,
+                            anilha,
+                            proprietario,
+                            SUM(pontos) as total_pontos,
+                            COUNT(*) as etapas_participadas,
+                            GROUP_CONCAT(pontos) as pontos_por_etapa,
+                            GROUP_CONCAT(data_etapa) as etapas_datas
+                        FROM resultados_importados
+                        GROUP BY passaro_nome, anilha, proprietario
+                        ORDER BY total_pontos DESC
+                    """
+                    linhas = conn.execute(query).fetchall()
+                
+                resultado = []
+                for l in linhas:
+                    d = dict(l)
+                    pontos_str = d["pontos_por_etapa"] or ""
+                    datas_str = d["etapas_datas"] or ""
+                    d["pontos_por_etapa"] = pontos_str.split(",") if pontos_str else []
+                    d["etapas_datas"] = datas_str.split(",") if datas_str else []
+                    resultado.append(d)
+                
+                return resultado
+        except Exception as e:
+            print(f"Erro no ranking: {e}")
+            return []
 
     def obter_categorias_disponiveis(self):
         """Retorna todas as categorias disponíveis nos resultados."""
-        with self._conexao() as conn:
-            linhas = conn.execute("""
-                SELECT DISTINCT categoria FROM resultados_importados ORDER BY categoria
-            """).fetchall()
-            return [l["categoria"] for l in linhas]
+        try:
+            with self._conexao() as conn:
+                linhas = conn.execute("""
+                    SELECT DISTINCT categoria FROM resultados_importados ORDER BY categoria
+                """).fetchall()
+                return [l["categoria"] for l in linhas]
+        except:
+            return []
 
     def exportar_inscritos_para_excel(self, torneio_nome, data_etapa, categoria):
         """Exporta a lista de inscritos para o formato do Marcador Digital."""
@@ -1069,7 +1114,46 @@ class BancoClube:
             return linha["total"]
 
     # ================================================================
-    # INSCRIÇÕES DO SÓCIO AGRUPADAS POR CATEGORIA
+    # CRIADORES
+    # ================================================================
+    def listar_criadores(self, busca=None):
+        """Lista todos os criadores com seus dados de contato."""
+        with self._conexao() as conn:
+            if busca:
+                query = """
+                    SELECT 
+                        id, nome, criatorio, ddi, ddd, celular, whatsapp, email
+                    FROM socios 
+                    WHERE exibir_dados = 1
+                    AND (nome LIKE ? OR criatorio LIKE ?)
+                    ORDER BY nome ASC
+                """
+                busca_termo = f"%{busca}%"
+                linhas = conn.execute(query, (busca_termo, busca_termo)).fetchall()
+            else:
+                query = """
+                    SELECT 
+                        id, nome, criatorio, ddi, ddd, celular, whatsapp, email
+                    FROM socios 
+                    WHERE exibir_dados = 1
+                    ORDER BY nome ASC
+                """
+                linhas = conn.execute(query).fetchall()
+            return [dict(l) for l in linhas]
+
+    def obter_criador(self, socio_id):
+        """Retorna os dados públicos de um criador."""
+        with self._conexao() as conn:
+            linha = conn.execute("""
+                SELECT 
+                    id, nome, criatorio, ddi, ddd, celular, whatsapp, email
+                FROM socios 
+                WHERE id = ? AND exibir_dados = 1
+            """, (socio_id,)).fetchone()
+            return dict(linha) if linha else None
+
+    # ================================================================
+    # INSCRIÇÕES DO SÓCIO
     # ================================================================
     def listar_inscricoes_do_socio_por_categoria(self, socio_id):
         """Retorna as inscrições do sócio agrupadas por categoria."""
@@ -1124,14 +1208,13 @@ class BancoClube:
         
         for passaro_id in passaros_ids:
             try:
-                # Verifica se o pássaro existe e pertence ao sócio
                 with self._conexao() as conn:
                     passaro = conn.execute(
                         "SELECT * FROM passaros WHERE id = ? AND socio_id = ?",
                         (passaro_id, socio_id)
                     ).fetchone()
                     if not passaro:
-                        erros.append(f"Pássaro ID {passaro_id} não encontrado ou não pertence a você.")
+                        erros.append(f"Pássaro não encontrado ou não pertence a você.")
                         continue
                 
                 inscricao_id = self.inscrever_passaro_na_etapa(etapa_id, passaro_id, socio_id)
@@ -1146,12 +1229,10 @@ class BancoClube:
         return inscritos, erros
 
     # ================================================================
-    # TRANSFERÊNCIA DE PÁSSAROS
+    # TRANSFERÊNCIA
     # ================================================================
     def solicitar_transferencia(self, passaro_id, socio_origem_id, cpf_destino):
-        """Solicita transferência de um pássaro para outro sócio."""
         with self._conexao() as conn:
-            # Verifica se o pássaro existe e pertence ao sócio origem
             passaro = conn.execute(
                 "SELECT * FROM passaros WHERE id = ? AND socio_id = ?",
                 (passaro_id, socio_origem_id)
@@ -1159,7 +1240,6 @@ class BancoClube:
             if not passaro:
                 raise ValueError("Pássaro não encontrado ou não pertence a você.")
             
-            # Verifica se o CPF destino existe
             socio_destino = conn.execute(
                 "SELECT id, nome FROM socios WHERE cpf = ?",
                 (cpf_destino,)
@@ -1170,7 +1250,6 @@ class BancoClube:
             if socio_destino["id"] == socio_origem_id:
                 raise ValueError("Não é possível transferir para você mesmo.")
             
-            # Verifica se já existe uma solicitação pendente
             pendente = conn.execute(
                 "SELECT id FROM transferencias WHERE passaro_id = ? AND status = 'pendente'",
                 (passaro_id,)
@@ -1178,7 +1257,6 @@ class BancoClube:
             if pendente:
                 raise ValueError("Já existe uma solicitação de transferência pendente para este pássaro.")
             
-            # Cria a solicitação
             cursor = conn.execute("""
                 INSERT INTO transferencias 
                 (passaro_id, socio_origem_id, socio_destino_id, cpf_destino, status, criado_em)
@@ -1188,10 +1266,8 @@ class BancoClube:
             return cursor.lastrowid
 
     def listar_transferencias_pendentes(self, socio_id=None):
-        """Lista transferências pendentes."""
         with self._conexao() as conn:
             if socio_id:
-                # Para um sócio específico (recebidas)
                 query = """
                     SELECT 
                         t.id as transferencia_id,
@@ -1212,7 +1288,6 @@ class BancoClube:
                 """
                 linhas = conn.execute(query, (socio_id,)).fetchall()
             else:
-                # Todas (admin)
                 query = """
                     SELECT 
                         t.id as transferencia_id,
@@ -1235,7 +1310,6 @@ class BancoClube:
             return [dict(l) for l in linhas]
 
     def listar_transferencias_enviadas(self, socio_id):
-        """Lista transferências enviadas por um sócio."""
         with self._conexao() as conn:
             linhas = conn.execute("""
                 SELECT 
@@ -1256,9 +1330,7 @@ class BancoClube:
             return [dict(l) for l in linhas]
 
     def aceitar_transferencia(self, transferencia_id, socio_destino_id):
-        """Aceita uma transferência de pássaro."""
         with self._conexao() as conn:
-            # Busca a transferência
             trans = conn.execute(
                 "SELECT * FROM transferencias WHERE id = ? AND socio_destino_id = ? AND status = 'pendente'",
                 (transferencia_id, socio_destino_id)
@@ -1266,13 +1338,11 @@ class BancoClube:
             if not trans:
                 raise ValueError("Transferência não encontrada ou já processada.")
             
-            # Atualiza o proprietário do pássaro
             conn.execute(
                 "UPDATE passaros SET socio_id = ? WHERE id = ?",
                 (socio_destino_id, trans["passaro_id"])
             )
             
-            # Atualiza o status da transferência
             conn.execute(
                 "UPDATE transferencias SET status = 'aprovado' WHERE id = ?",
                 (transferencia_id,)
@@ -1281,7 +1351,6 @@ class BancoClube:
             return True
 
     def recusar_transferencia(self, transferencia_id, socio_destino_id):
-        """Recusa uma transferência de pássaro."""
         with self._conexao() as conn:
             trans = conn.execute(
                 "SELECT * FROM transferencias WHERE id = ? AND socio_destino_id = ? AND status = 'pendente'",
@@ -1298,7 +1367,6 @@ class BancoClube:
             return True
 
     def aprovar_transferencia_admin(self, transferencia_id):
-        """Admin aprova uma transferência (para pássaros com pontuação)."""
         with self._conexao() as conn:
             trans = conn.execute(
                 "SELECT * FROM transferencias WHERE id = ? AND status = 'pendente'",
@@ -1307,25 +1375,21 @@ class BancoClube:
             if not trans:
                 raise ValueError("Transferência não encontrada.")
             
-            # Verifica se o pássaro tem pontuação
             tem_pontuacao = conn.execute(
                 "SELECT id FROM ranking_geral WHERE passaro_id = ? LIMIT 1",
                 (trans["passaro_id"],)
             ).fetchone()
             
             if tem_pontuacao:
-                # Se tem pontuação, precisa de aprovação do admin
                 conn.execute(
                     "UPDATE transferencias SET status = 'aprovado_admin' WHERE id = ?",
                     (transferencia_id,)
                 )
-                # Atualiza o proprietário
                 conn.execute(
                     "UPDATE passaros SET socio_id = ? WHERE id = ?",
                     (trans["socio_destino_id"], trans["passaro_id"])
                 )
             else:
-                # Se não tem pontuação, aprova direto
                 conn.execute(
                     "UPDATE passaros SET socio_id = ? WHERE id = ?",
                     (trans["socio_destino_id"], trans["passaro_id"])
@@ -1338,7 +1402,6 @@ class BancoClube:
             return True
 
     def recusar_transferencia_admin(self, transferencia_id):
-        """Admin recusa uma transferência."""
         with self._conexao() as conn:
             conn.execute(
                 "UPDATE transferencias SET status = 'recusado_admin' WHERE id = ? AND status = 'pendente'",
@@ -1435,9 +1498,7 @@ class BancoClube:
             return cursor.lastrowid
 
     def cancelar_inscricao(self, inscricao_id, socio_id):
-        """Cancela uma inscrição mesmo que já tenha ordem."""
         with self._conexao() as conn:
-            # Verifica se a inscrição existe e pertence ao sócio
             inscricao = conn.execute("""
                 SELECT i.* FROM inscricoes i
                 JOIN passaros p ON p.id = i.passaro_id
@@ -1445,9 +1506,6 @@ class BancoClube:
             """, (inscricao_id, socio_id)).fetchone()
             
             if not inscricao:
-                # Se não pertence ao sócio, verifica se é admin (pode cancelar qualquer uma)
-                # Vamos permitir que a função seja chamada mesmo sem verificação de socio_id
-                # O app.py já verifica se é admin
                 inscricao = conn.execute(
                     "SELECT * FROM inscricoes WHERE id = ?",
                     (inscricao_id,)
@@ -1455,7 +1513,6 @@ class BancoClube:
                 if not inscricao:
                     raise ValueError("Inscrição não encontrada.")
             
-            # Remove a inscrição (a ordem fica disponível para reuso)
             conn.execute("DELETE FROM inscricoes WHERE id = ?", (inscricao_id,))
             conn.execute("DELETE FROM pagamentos WHERE inscricao_id = ?", (inscricao_id,))
             conn.execute("DELETE FROM resultados WHERE inscricao_id = ?", (inscricao_id,))

@@ -26,8 +26,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>RG</label>
-                <input type="text" name="rg" value="{{ socio.rg or '' }}">
+                <label>Nome do Criatório / Canaril</label>
+                <input type="text" name="criatorio" value="{{ socio.criatorio or '' }}" placeholder="Ex: CRIATÓRIO GOULARTH">
             </div>
         </div>
 
@@ -86,16 +86,6 @@
                 <input type="text" name="celular" placeholder="99999-9999" value="{{ socio.celular or '' }}">
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Fone Residencial</label>
-                <input type="text" name="fone_residencial" value="{{ socio.fone_residencial or '' }}">
-            </div>
-            <div class="form-group">
-                <label>Fone Comercial</label>
-                <input type="text" name="fone_comercial" value="{{ socio.fone_comercial or '' }}">
-            </div>
-        </div>
         <div class="form-group">
             <label>WhatsApp</label>
             <input type="text" name="whatsapp" value="{{ socio.whatsapp or '' }}">
@@ -114,24 +104,14 @@
                 <input type="text" name="facebook" value="{{ socio.facebook or '' }}">
             </div>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Instagram</label>
-                <input type="text" name="instagram" value="{{ socio.instagram or '' }}">
-            </div>
-            <div class="form-group">
-                <label>Site</label>
-                <input type="text" name="site" placeholder="https://..." value="{{ socio.site or '' }}">
-            </div>
-        </div>
         <div class="form-group">
-            <label>Anotações</label>
-            <textarea name="anotacoes" rows="3">{{ socio.anotacoes or '' }}</textarea>
+            <label>Instagram</label>
+            <input type="text" name="instagram" value="{{ socio.instagram or '' }}">
         </div>
         <div class="form-group">
             <label>
                 <input type="checkbox" name="exibir_dados" value="1" {% if socio.exibir_dados %}checked{% endif %}>
-                Permitir exibição pública dos meus dados
+                Permitir exibição pública dos meus dados (nome, criatório, contatos)
             </label>
         </div>
 
