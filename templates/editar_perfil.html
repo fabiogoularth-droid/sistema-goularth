@@ -94,24 +94,27 @@
             <label>E-mail</label>
             <input type="email" name="email" value="{{ socio.email or '' }}">
         </div>
+
+        <h3 style="color: #2B3328; border-bottom: 2px solid #C9980E; padding-bottom: 8px; margin: 20px 0;">Redes Sociais</h3>
         <div class="form-row">
             <div class="form-group">
-                <label>Skype</label>
-                <input type="text" name="skype" value="{{ socio.skype or '' }}">
+                <label>📘 Facebook</label>
+                <input type="text" name="facebook" value="{{ socio.facebook or '' }}">
             </div>
             <div class="form-group">
-                <label>Facebook</label>
-                <input type="text" name="facebook" value="{{ socio.facebook or '' }}">
+                <label>📷 Instagram</label>
+                <input type="text" name="instagram" value="{{ socio.instagram or '' }}">
             </div>
         </div>
         <div class="form-group">
-            <label>Instagram</label>
-            <input type="text" name="instagram" value="{{ socio.instagram or '' }}">
+            <label>▶️ YouTube</label>
+            <input type="text" name="youtube" value="{{ socio.youtube or '' }}">
         </div>
+        
         <div class="form-group">
             <label>
                 <input type="checkbox" name="exibir_dados" value="1" {% if socio.exibir_dados %}checked{% endif %}>
-                Permitir exibição pública dos meus dados (nome, criatório, contatos)
+                Permitir exibição pública dos meus dados (nome, criatório, contatos, redes sociais)
             </label>
         </div>
 

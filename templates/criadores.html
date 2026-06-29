@@ -38,6 +38,19 @@
     .criador-card .contato span {
         margin-right: 15px;
     }
+    .criador-card .redes {
+        margin-top: 4px;
+    }
+    .criador-card .redes a {
+        text-decoration: none;
+        margin-right: 12px;
+        font-size: 18px;
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+    .criador-card .redes a:hover {
+        transform: scale(1.2);
+    }
     .busca-form {
         display: flex;
         gap: 10px;
@@ -116,6 +129,17 @@
                         {% endif %}
                         {% if c.email %}
                             <span>✉️ {{ c.email }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="redes">
+                        {% if c.facebook %}
+                            <a href="{{ c.facebook }}" target="_blank" title="Facebook">📘</a>
+                        {% endif %}
+                        {% if c.instagram %}
+                            <a href="{{ c.instagram }}" target="_blank" title="Instagram">📷</a>
+                        {% endif %}
+                        {% if c.youtube %}
+                            <a href="{{ c.youtube }}" target="_blank" title="YouTube">▶️</a>
                         {% endif %}
                     </div>
                 </div>

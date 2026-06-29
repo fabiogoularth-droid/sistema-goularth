@@ -36,6 +36,19 @@
     .detalhe-card .valor {
         color: #2B3328;
     }
+    .detalhe-card .redes {
+        margin-top: 10px;
+    }
+    .detalhe-card .redes a {
+        text-decoration: none;
+        font-size: 28px;
+        margin-right: 20px;
+        transition: transform 0.2s;
+        display: inline-block;
+    }
+    .detalhe-card .redes a:hover {
+        transform: scale(1.2);
+    }
 </style>
 
 <div class="card">
@@ -66,6 +79,18 @@
                 <span class="label">✉️ E-mail</span>
                 <span class="valor">{{ criador.email }}</span>
             </div>
+        {% endif %}
+    </div>
+
+    <div class="redes">
+        {% if criador.facebook %}
+            <a href="{{ criador.facebook }}" target="_blank" title="Facebook">📘</a>
+        {% endif %}
+        {% if criador.instagram %}
+            <a href="{{ criador.instagram }}" target="_blank" title="Instagram">📷</a>
+        {% endif %}
+        {% if criador.youtube %}
+            <a href="{{ criador.youtube }}" target="_blank" title="YouTube">▶️</a>
         {% endif %}
     </div>
 </div>

@@ -77,9 +77,9 @@ class BancoClube:
                     celular TEXT,
                     whatsapp TEXT,
                     email TEXT,
-                    skype TEXT,
                     facebook TEXT,
                     instagram TEXT,
+                    youtube TEXT,
                     exibir_dados INTEGER DEFAULT 0,
                     senha_hash TEXT NOT NULL,
                     criado_em TEXT NOT NULL
@@ -240,7 +240,7 @@ class BancoClube:
                 )
 
     def _migrar_banco(self):
-        """Adiciona a coluna criatorio se ela não existir."""
+        """Adiciona colunas faltantes (criatorio, youtube) se não existirem."""
         try:
             with self._conexao() as conn:
                 colunas = conn.execute("PRAGMA table_info(socios)").fetchall()
@@ -249,8 +249,15 @@ class BancoClube:
                 if "criatorio" not in colunas_existentes:
                     conn.execute("ALTER TABLE socios ADD COLUMN criatorio TEXT")
                     print("✅ Coluna 'criatorio' adicionada com sucesso!")
-                else:
-                    print("ℹ️ Coluna 'criatorio' já existe.")
+                
+                if "youtube" not in colunas_existentes:
+                    conn.execute("ALTER TABLE socios ADD COLUMN youtube TEXT")
+                    print("✅ Coluna 'youtube' adicionada com sucesso!")
+                
+                # Remove skype se existir (opcional)
+                if "skype" in colunas_existentes:
+                    # SQLite não suporta DROP COLUMN diretamente, mas podemos ignorar
+                    print("ℹ️ Coluna 'skype' existe, mas não será usada.")
         except Exception as e:
             print(f"❌ Erro na migração: {e}")
 
@@ -502,9 +509,9 @@ class BancoClube:
                     sigla_clube, numero_socio, codigo_socio,
                     cep, endereco, numero, complemento, bairro, cidade, uf, pais,
                     ddi, ddd, celular, whatsapp, email,
-                    skype, facebook, instagram, exibir_dados,
+                    facebook, instagram, youtube, exibir_dados,
                     senha_hash, criado_em
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 nome, cpf, dados.get("nascimento"), dados.get("sexo"), dados.get("criatorio"),
                 sigla_clube, numero_socio, codigo_socio,
@@ -512,8 +519,8 @@ class BancoClube:
                 dados.get("complemento"), dados.get("bairro"), dados.get("cidade"),
                 dados.get("uf"), dados.get("pais"),
                 dados.get("ddi"), dados.get("ddd"), dados.get("celular"), dados.get("whatsapp"),
-                dados.get("email"), dados.get("skype"), dados.get("facebook"),
-                dados.get("instagram"), 1 if dados.get("exibir_dados") else 0,
+                dados.get("email"), dados.get("facebook"), dados.get("instagram"),
+                dados.get("youtube"), 1 if dados.get("exibir_dados") else 0,
                 _hash_senha(senha), datetime.datetime.now().isoformat()
             ))
             return cursor.lastrowid
@@ -1122,7 +1129,8 @@ class BancoClube:
             if busca:
                 query = """
                     SELECT 
-                        id, nome, criatorio, ddi, ddd, celular, whatsapp, email
+                        id, nome, criatorio, ddi, ddd, celular, whatsapp, email,
+                        facebook, instagram, youtube
                     FROM socios 
                     WHERE exibir_dados = 1
                     AND (nome LIKE ? OR criatorio LIKE ?)
@@ -1133,7 +1141,8 @@ class BancoClube:
             else:
                 query = """
                     SELECT 
-                        id, nome, criatorio, ddi, ddd, celular, whatsapp, email
+                        id, nome, criatorio, ddi, ddd, celular, whatsapp, email,
+                        facebook, instagram, youtube
                     FROM socios 
                     WHERE exibir_dados = 1
                     ORDER BY nome ASC
@@ -1146,7 +1155,8 @@ class BancoClube:
         with self._conexao() as conn:
             linha = conn.execute("""
                 SELECT 
-                    id, nome, criatorio, ddi, ddd, celular, whatsapp, email
+                    id, nome, criatorio, ddi, ddd, celular, whatsapp, email,
+                    facebook, instagram, youtube
                 FROM socios 
                 WHERE id = ? AND exibir_dados = 1
             """, (socio_id,)).fetchone()
