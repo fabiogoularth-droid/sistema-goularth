@@ -2300,7 +2300,14 @@ class BancoClube:
             resultado = {}
             for l in linhas:
                 d = dict(l)
-                chave = f"{d['categoria']} - {d['modalidade']}"
+                # ============================================================
+                # ALTERAÇÃO PARA MISTO - Mostra "Misto" em vez de "FILHOTE" ou "ADULTO"
+                # ============================================================
+                if d['categoria'] == "MISTO":
+                    chave = f"Misto - {d['modalidade']}"
+                else:
+                    chave = f"{d['categoria']} - {d['modalidade']}"
+                
                 if chave not in resultado:
                     resultado[chave] = []
                 resultado[chave].append(d)
@@ -2686,11 +2693,21 @@ class BancoClube:
             if passaro["socio_id"] != socio_id:
                 raise regras.ErroValidacao("Este pássaro não pertence a você.")
 
+            # ================================================================
+            # VERIFICAÇÃO DE CATEGORIA - CORRIGIDO PARA MISTO
+            # ================================================================
             categoria_calculada = regras.calcular_categoria(passaro["codigo_ave"])
-            if categoria_calculada != etapa["categoria"]:
-                raise regras.ErroValidacao(
-                    f"O pássaro é {categoria_calculada}, mas a etapa é {etapa['categoria']}."
-                )
+            categoria_etapa = etapa["categoria"]
+
+            # Se a etapa for MISTO, aceita QUALQUER pássaro (filhote OU adulto)
+            if categoria_etapa == "MISTO":
+                # Aceita qualquer um, não faz verificação
+                pass
+            else:
+                if categoria_calculada != categoria_etapa:
+                    raise regras.ErroValidacao(
+                        f"O pássaro é {categoria_calculada}, mas a etapa é {categoria_etapa}."
+                    )
 
             if self.usar_postgres:
                 cur = conn.cursor()
@@ -2924,7 +2941,7 @@ class BancoClube:
                     JOIN socios s ON s.id = p.socio_id
                     LEFT JOIN pagamentos pg ON pg.inscricao_id = i.id
                     WHERE i.etapa_id = %s
-                    ORDER BY i.ordem NULLS LAST, p.nome
+                    ORDER BY i.ordem ASC NULLS LAST
                 """, (etapa_id,))
                 linhas = cur.fetchall()
             else:
@@ -2945,7 +2962,7 @@ class BancoClube:
                     JOIN socios s ON s.id = p.socio_id
                     LEFT JOIN pagamentos pg ON pg.inscricao_id = i.id
                     WHERE i.etapa_id = ?
-                    ORDER BY i.ordem NULLS LAST, p.nome
+                    ORDER BY i.ordem ASC NULLS LAST
                 """, (etapa_id,)).fetchall()
             return [dict(l) for l in linhas]
 
