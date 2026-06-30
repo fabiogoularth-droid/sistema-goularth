@@ -5,27 +5,15 @@ SISTEMA GOULARTH DE TORNEIOS — aplicação Flask
 """
 
 import os
-import sys
-import subprocess
 import functools
 import datetime
 import threading
 import time
 import logging
+import base64
 from flask import (
     Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 )
-
-# Tenta importar psycopg2, se não conseguir, tenta instalar
-try:
-    import psycopg2
-    print("✅ psycopg2 importado com sucesso!")
-except ImportError:
-    print("⚠️ psycopg2 não encontrado. Tentando instalar...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "psycopg2-binary==2.9.9"])
-    import psycopg2
-    print("✅ psycopg2 instalado com sucesso!")
-
 import banco
 import regras
 
@@ -43,7 +31,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave-desenvolvimento-trocar")
 
-db = banco.BancoClube(os.environ.get("DB_PATH", "clube.db"))
+db = banco.BancoClube("clube.db")
 
 NOMES_MODALIDADE = {"FIBRA": "Fibra", "CANTO_LIVRE": "Canto Livre"}
 NOMES_CATEGORIA = {"FILHOTE": "Filhote", "ADULTO": "Adulto", "MISTO": "Misto"}
@@ -73,7 +61,6 @@ def admin_obrigatorio(view):
 
 
 def admin_com_permissoes(permissoes_requeridas):
-    """Decorador que verifica se o admin tem permissão para acessar a rota."""
     def decorator(view):
         @functools.wraps(view)
         def wrapper(*args, **kwargs):
@@ -124,26 +111,17 @@ def injetar_globais():
 # ================================================================
 @app.route("/health")
 def health_check():
-    """Endpoint para verificar saúde da aplicação."""
     try:
         db_exists = os.path.exists("clube.db")
         db_size = os.path.getsize("clube.db") if db_exists else 0
-        total_resultados = db.contar_resultados_importados() if db_exists else 0
-        
         return jsonify({
             "status": "ok",
             "banco_existe": db_exists,
             "banco_tamanho": f"{db_size / 1024:.2f} KB",
-            "resultados_importados": total_resultados,
-            "timestamp": datetime.datetime.now().isoformat(),
-            "usando_postgres": db.usar_postgres if hasattr(db, 'usar_postgres') else False
+            "timestamp": datetime.datetime.now().isoformat()
         })
     except Exception as e:
-        logger.error(f"Erro no health check: {e}")
-        return jsonify({
-            "status": "erro",
-            "erro": str(e)
-        }), 500
+        return jsonify({"status": "erro", "erro": str(e)}), 500
 
 
 # ================================================================
@@ -176,12 +154,8 @@ def ver_etapa_publica(etapa_id):
     return render_template("etapa_publica.html", etapa=etapa, inscritos=inscritos)
 
 
-# ================================================================
-# RESULTADOS E RANKING (PÚBLICOS)
-# ================================================================
 @app.route("/resultados")
 def listar_resultados():
-    """Página com todas as etapas importadas."""
     categorias = db.obter_categorias_disponiveis()
     etapas = db.listar_etapas_importadas()
     return render_template("resultados.html", etapas=etapas, categorias=categorias)
@@ -189,14 +163,12 @@ def listar_resultados():
 
 @app.route("/resultados/<categoria>")
 def listar_resultados_categoria(categoria):
-    """Página com resultados filtrados por categoria."""
     etapas = db.listar_etapas_importadas(categoria)
     return render_template("resultados_categoria.html", etapas=etapas, categoria=categoria)
 
 
 @app.route("/resultados/etapa/<torneio_nome>/<data_etapa>/<categoria>")
 def ver_resultado_etapa(torneio_nome, data_etapa, categoria):
-    """Página detalhada de uma etapa."""
     resultados = db.obter_resultado_etapa_importado(torneio_nome, data_etapa, categoria)
     return render_template("resultado_etapa.html", 
                           resultados=resultados, 
@@ -207,7 +179,6 @@ def ver_resultado_etapa(torneio_nome, data_etapa, categoria):
 
 @app.route("/ranking")
 def ranking_geral():
-    """Página com ranking geral do campeonato."""
     try:
         ranking = db.obter_ranking_geral_importado()
         categorias = db.obter_categorias_disponiveis()
@@ -219,7 +190,6 @@ def ranking_geral():
 
 @app.route("/ranking/<categoria>")
 def ranking_categoria(categoria):
-    """Página com ranking por categoria."""
     ranking = db.obter_ranking_geral_importado(categoria)
     categorias = db.obter_categorias_disponiveis()
     return render_template("ranking_categoria.html", 
@@ -228,12 +198,8 @@ def ranking_categoria(categoria):
                           categorias=categorias)
 
 
-# ================================================================
-# CRIADORES
-# ================================================================
 @app.route("/criadores")
 def listar_criadores():
-    """Página com lista de criadores."""
     busca = request.args.get("busca", "").strip()
     criadores = db.listar_criadores(busca if busca else None)
     return render_template("criadores.html", criadores=criadores, busca=busca)
@@ -241,16 +207,15 @@ def listar_criadores():
 
 @app.route("/criador/<int:socio_id>")
 def ver_criador(socio_id):
-    """Página de detalhes de um criador."""
     criador = db.obter_criador(socio_id)
     if criador is None:
-        flash("Criador não encontrado ou não permite exibição pública.", "erro")
+        flash("Criador não encontrado.", "erro")
         return redirect(url_for("listar_criadores"))
     return render_template("criador_detalhe.html", criador=criador)
 
 
 # ================================================================
-# CADASTRO E LOGIN (SÓCIO)
+# CADASTRO E LOGIN
 # ================================================================
 @app.route("/cadastro", methods=["GET", "POST"])
 def cadastro():
@@ -299,7 +264,7 @@ def cadastro():
             )
             session["socio_id"] = socio_id
             session["socio_nome"] = nome
-            flash("Cadastro realizado com sucesso! Bem-vindo(a).", "sucesso")
+            flash("Cadastro realizado com sucesso!", "sucesso")
             return redirect(url_for("area_socio"))
         except (regras.ErroValidacao, ValueError) as e:
             flash(str(e), "erro")
@@ -315,7 +280,7 @@ def login():
         senha = request.form.get("senha", "")
         
         if not cpf:
-            flash("Por favor, digite seu CPF.", "erro")
+            flash("Digite seu CPF.", "erro")
             return render_template("login.html", cpf=cpf)
         
         try:
@@ -327,13 +292,8 @@ def login():
             session["socio_id"] = socio["id"]
             session["socio_nome"] = socio["nome"]
             return redirect(url_for("area_socio"))
-            
-        except regras.ErroValidacao as e:
-            flash(str(e), "erro")
-            return render_template("login.html", cpf=cpf)
         except Exception as e:
-            logger.error(f"Erro no login: {e}")
-            flash("Erro ao fazer login. Tente novamente.", "erro")
+            flash("Erro ao fazer login.", "erro")
             return render_template("login.html", cpf=cpf)
     
     return render_template("login.html")
@@ -346,7 +306,7 @@ def logout():
 
 
 # ================================================================
-# ADMIN - LOGIN E GESTÃO
+# ADMIN
 # ================================================================
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
@@ -395,9 +355,6 @@ def admin_trocar_senha():
     return render_template("admin_trocar_senha.html")
 
 
-# ================================================================
-# ADMIN - DASHBOARD E TORNEIOS
-# ================================================================
 @app.route("/admin")
 @admin_obrigatorio
 def admin_dashboard():
@@ -433,7 +390,7 @@ def admin_criar():
         
         try:
             db.criar_admin(nome, email, senha, nivel)
-            flash(f"Administrador '{nome}' criado com sucesso! Nível: {nivel}", "sucesso")
+            flash(f"Administrador '{nome}' criado com sucesso!", "sucesso")
             return redirect(url_for("admin_dashboard"))
         except (regras.ErroValidacao, ValueError) as e:
             flash(str(e), "erro")
@@ -491,7 +448,7 @@ def admin_novo_torneio():
         mapa_url = request.form.get("mapa_url", "").strip()
         try:
             torneio_id = db.criar_torneio(nome, endereco, mapa_url)
-            flash(f"Torneio '{nome}' criado com sucesso!", "sucesso")
+            flash(f"Torneio '{nome}' criado!", "sucesso")
             return redirect(url_for("admin_ver_torneio", torneio_id=torneio_id))
         except regras.ErroValidacao as e:
             flash(str(e), "erro")
@@ -512,7 +469,7 @@ def admin_editar_torneio(torneio_id):
         mapa_url = request.form.get("mapa_url", "").strip()
         try:
             db.editar_torneio(torneio_id, nome, endereco, mapa_url)
-            flash("Torneio atualizado com sucesso!", "sucesso")
+            flash("Torneio atualizado!", "sucesso")
             return redirect(url_for("admin_ver_torneio", torneio_id=torneio_id))
         except regras.ErroValidacao as e:
             flash(str(e), "erro")
@@ -565,7 +522,7 @@ def admin_nova_etapa(torneio_id):
                 info_pagamento=info_pagamento,
                 prazo_pagamento=prazo_pagamento
             )
-            flash(f"Etapa '{nome}' criada com sucesso!", "sucesso")
+            flash(f"Etapa '{nome}' criada!", "sucesso")
             return redirect(url_for("admin_ver_torneio", torneio_id=torneio_id))
         except regras.ErroValidacao as e:
             flash(str(e), "erro")
@@ -598,7 +555,7 @@ def admin_editar_etapa(etapa_id):
             db.editar_etapa(etapa_id, nome, modalidade, categoria, data_etapa, 
                            prazo_inscricao, limite_por_cpf, limite_inscricoes,
                            info_pagamento, prazo_pagamento)
-            flash("Etapa atualizada com sucesso!", "sucesso")
+            flash("Etapa atualizada!", "sucesso")
             return redirect(url_for("admin_ver_etapa", etapa_id=etapa_id))
         except regras.ErroValidacao as e:
             flash(str(e), "erro")
@@ -634,7 +591,7 @@ def admin_novo_festivo():
                 info_pagamento=info_pagamento,
                 prazo_pagamento=prazo_pagamento
             )
-            flash(f"Festivo '{nome}' criado com sucesso!", "sucesso")
+            flash(f"Festivo '{nome}' criado!", "sucesso")
             return redirect(url_for("admin_dashboard"))
         except regras.ErroValidacao as e:
             flash(str(e), "erro")
@@ -651,15 +608,8 @@ def admin_ver_etapa(etapa_id):
         return redirect(url_for("admin_dashboard"))
     
     inscritos = db.listar_inscritos_na_etapa(etapa_id)
-    
-    # Ordena por ordem (crescente) - quem tem ordem NULL vai para o final
-    inscritos_ordenados = sorted(
-        inscritos,
-        key=lambda x: (x["ordem"] is None, x["ordem"] if x["ordem"] is not None else float('inf'))
-    )
-    
     total_inscritos = db.contar_inscricoes_na_etapa(etapa_id)
-    return render_template("admin_ver_etapa.html", etapa=etapa, inscritos=inscritos_ordenados, total_inscritos=total_inscritos)
+    return render_template("admin_ver_etapa.html", etapa=etapa, inscritos=inscritos, total_inscritos=total_inscritos)
 
 
 @app.route("/admin/etapa/<int:etapa_id>/limite", methods=["POST"])
@@ -681,9 +631,9 @@ def admin_atualizar_limite(etapa_id):
         
         db.atualizar_limite_inscricoes_etapa(etapa_id, novo_limite)
         if novo_limite is None:
-            flash("Limite de inscrições removido (ilimitado).", "sucesso")
+            flash("Limite removido (ilimitado).", "sucesso")
         else:
-            flash(f"Limite de inscrições atualizado para {novo_limite}.", "sucesso")
+            flash(f"Limite atualizado para {novo_limite}.", "sucesso")
     except ValueError as e:
         flash(str(e), "erro")
     
@@ -701,7 +651,7 @@ def admin_toggle_inscricoes(etapa_id):
     nova_abertura = not etapa["inscricoes_abertas"]
     db.atualizar_abertura_inscricoes(etapa_id, nova_abertura)
     status = "abertas" if nova_abertura else "fechadas"
-    flash(f"Inscrições {status} com sucesso.", "sucesso")
+    flash(f"Inscrições {status}.", "sucesso")
     return redirect(url_for("admin_ver_etapa", etapa_id=etapa_id))
 
 
@@ -718,14 +668,8 @@ def admin_lista_apresentacao(etapa_id):
     
     inscritos = db.listar_inscritos_na_etapa(etapa_id)
     
-    # Ordena por ordem (crescente) - quem tem ordem NULL vai para o final
-    inscritos_ordenados = sorted(
-        inscritos,
-        key=lambda x: (x["ordem"] is None, x["ordem"] if x["ordem"] is not None else float('inf'))
-    )
-    
     lista = []
-    for i, ins in enumerate(inscritos_ordenados, 1):
+    for i, ins in enumerate(inscritos, 1):
         lista.append({
             "ordem_sequencial": i,
             "ordem_sistema": ins["ordem"] if ins["ordem"] else "—",
@@ -789,7 +733,7 @@ def admin_exportar_lista_apresentacao(etapa_id):
         )
         
     except ImportError:
-        flash("Biblioteca 'openpyxl' não instalada. Use: pip install openpyxl", "erro")
+        flash("Biblioteca 'openpyxl' não instalada.", "erro")
         return redirect(url_for("admin_ver_etapa", etapa_id=etapa_id))
     except Exception as e:
         flash(f"Erro ao exportar: {str(e)}", "erro")
@@ -855,7 +799,7 @@ def admin_exportar_lista_livre(etapa_id):
         )
         
     except ImportError:
-        flash("Biblioteca 'openpyxl' não instalada. Use: pip install openpyxl", "erro")
+        flash("Biblioteca 'openpyxl' não instalada.", "erro")
         return redirect(url_for("admin_ver_etapa", etapa_id=etapa_id))
     except Exception as e:
         flash(f"Erro ao exportar: {str(e)}", "erro")
@@ -909,22 +853,12 @@ def admin_resultado_manual_salvar():
             return redirect(request.referrer)
         
         with db._conexao() as conn:
-            if db.usar_postgres:
-                cur = conn.cursor()
-                cur.execute("""
-                    SELECT i.*, e.modalidade 
-                    FROM inscricoes i
-                    JOIN etapas e ON e.id = i.etapa_id
-                    WHERE i.id = %s
-                """, (inscricao_id,))
-                insc = cur.fetchone()
-            else:
-                insc = conn.execute("""
-                    SELECT i.*, e.modalidade 
-                    FROM inscricoes i
-                    JOIN etapas e ON e.id = i.etapa_id
-                    WHERE i.id = ?
-                """, (inscricao_id,)).fetchone()
+            insc = conn.execute("""
+                SELECT i.*, e.modalidade 
+                FROM inscricoes i
+                JOIN etapas e ON e.id = i.etapa_id
+                WHERE i.id = ?
+            """, (inscricao_id,)).fetchone()
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
@@ -958,11 +892,7 @@ def admin_resultado_manual_salvar():
 def admin_resultado_manual_excluir(resultado_id):
     try:
         with db._conexao() as conn:
-            if db.usar_postgres:
-                cur = conn.cursor()
-                cur.execute("DELETE FROM resultados WHERE id = %s", (resultado_id,))
-            else:
-                conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
+            conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
         flash("Resultado excluído com sucesso!", "sucesso")
     except Exception as e:
         flash(f"Erro ao excluir: {str(e)}", "erro")
@@ -1073,11 +1003,11 @@ def admin_importar_resultado():
                 })
             
             if not resultados:
-                flash("Nenhum dado válido encontrado. Verifique o formato.", "erro")
+                flash("Nenhum dado válido encontrado.", "erro")
                 return render_template("admin_importar_resultado.html")
             
             db.importar_resultado_etapa(torneio_nome, categoria, data_etapa, resultados)
-            flash(f"Resultado da etapa '{torneio_nome}' importado com sucesso! ({len(resultados)} pássaros)", "sucesso")
+            flash(f"Resultado importado! ({len(resultados)} pássaros)", "sucesso")
             return redirect(url_for("admin_resultados"))
             
         except Exception as e:
@@ -1125,7 +1055,6 @@ def admin_upload_resultado():
                 if arquivo.filename.lower().endswith('.csv'):
                     db.importar_csv_resultado(caminho_tmp, torneio_nome, categoria, data_etapa)
                 else:
-                    # Usa openpyxl em vez de pandas
                     from openpyxl import load_workbook
                     wb = load_workbook(caminho_tmp, data_only=True)
                     ws = wb.active
@@ -1151,7 +1080,7 @@ def admin_upload_resultado():
                     db.importar_resultado_etapa(torneio_nome, categoria, data_etapa, resultados)
                 
                 os.unlink(caminho_tmp)
-                flash(f"Resultado importado com sucesso!", "sucesso")
+                flash("Resultado importado com sucesso!", "sucesso")
                 return redirect(url_for("admin_resultados"))
                 
             except Exception as e:
@@ -1225,7 +1154,7 @@ def admin_editar_resultado(torneio_nome, data_etapa, categoria):
                                       categoria=categoria)
             
             db.editar_resultado_etapa(torneio_nome, data_etapa, categoria, resultados)
-            flash(f"Resultado da etapa '{torneio_nome}' atualizado com sucesso!", "sucesso")
+            flash(f"Resultado atualizado com sucesso!", "sucesso")
             return redirect(url_for("admin_resultados"))
             
         except Exception as e:
@@ -1252,7 +1181,7 @@ def admin_excluir_etapa():
     
     try:
         db.excluir_etapa_importada(torneio_nome, data_etapa, categoria)
-        flash(f"Etapa '{torneio_nome}' excluída com sucesso!", "sucesso")
+        flash(f"Etapa excluída com sucesso!", "sucesso")
     except Exception as e:
         flash(f"Erro ao excluir: {str(e)}", "erro")
     
@@ -1305,7 +1234,7 @@ def admin_exportar_inscritos(torneio_nome, data_etapa, categoria):
         )
         
     except ImportError:
-        flash("Biblioteca 'openpyxl' não instalada. Use: pip install openpyxl", "erro")
+        flash("Biblioteca 'openpyxl' não instalada.", "erro")
         return redirect(url_for("admin_resultados"))
     except Exception as e:
         flash(f"Erro ao exportar: {str(e)}", "erro")
@@ -1327,7 +1256,7 @@ def admin_transferencias():
 def admin_aprovar_transferencia(transferencia_id):
     try:
         db.aprovar_transferencia_admin(transferencia_id)
-        flash("Transferência aprovada com sucesso!", "sucesso")
+        flash("Transferência aprovada!", "sucesso")
     except (regras.ErroValidacao, ValueError) as e:
         flash(str(e), "erro")
     return redirect(url_for("admin_transferencias"))
@@ -1352,7 +1281,7 @@ def admin_recusar_transferencia(transferencia_id):
 def admin_confirmar_pagamento(inscricao_id):
     try:
         db.confirmar_pagamento(inscricao_id)
-        flash("Pagamento confirmado com sucesso!", "sucesso")
+        flash("Pagamento confirmado!", "sucesso")
     except ValueError as e:
         flash(str(e), "erro")
     return redirect(request.referrer or url_for("admin_dashboard"))
@@ -1370,14 +1299,14 @@ def admin_recusar_pagamento(inscricao_id):
 
 
 # ================================================================
-# ADMIN - APROVAÇÃO DE EDIÇÕES DE PÁSSAROS
+# ADMIN - APROVAÇÃO DE EDIÇÕES
 # ================================================================
 @app.route("/admin/edicoes/<int:edicao_id>/aprovar", methods=["POST"])
 @admin_obrigatorio
 def admin_aprovar_edicao(edicao_id):
     try:
         db.aprovar_edicao_passaro(edicao_id)
-        flash("Edição aprovada com sucesso!", "sucesso")
+        flash("Edição aprovada!", "sucesso")
     except ValueError as e:
         flash(str(e), "erro")
     return redirect(url_for("admin_dashboard"))
@@ -1402,39 +1331,95 @@ def admin_rejeitar_edicao(edicao_id):
 def admin_cancelar_inscricao(inscricao_id):
     try:
         with db._conexao() as conn:
-            if db.usar_postgres:
-                cur = conn.cursor()
-                cur.execute("SELECT passaro_id FROM inscricoes WHERE id = %s", (inscricao_id,))
-                insc = cur.fetchone()
-            else:
-                insc = conn.execute(
-                    "SELECT passaro_id FROM inscricoes WHERE id = ?",
-                    (inscricao_id,)
-                ).fetchone()
+            insc = conn.execute(
+                "SELECT passaro_id FROM inscricoes WHERE id = ?",
+                (inscricao_id,)
+            ).fetchone()
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
                 return redirect(request.referrer or url_for("area_socio"))
             
-            if db.usar_postgres:
-                cur = conn.cursor()
-                cur.execute("SELECT socio_id FROM passaros WHERE id = %s", (insc["passaro_id"],))
-                passaro = cur.fetchone()
-            else:
-                passaro = conn.execute(
-                    "SELECT socio_id FROM passaros WHERE id = ?",
-                    (insc["passaro_id"],)
-                ).fetchone()
+            passaro = conn.execute(
+                "SELECT socio_id FROM passaros WHERE id = ?",
+                (insc["passaro_id"],)
+            ).fetchone()
             
             if not passaro:
                 flash("Pássaro não encontrado.", "erro")
                 return redirect(request.referrer or url_for("area_socio"))
         
         db.cancelar_inscricao(inscricao_id, passaro["socio_id"])
-        flash("Inscrição cancelada pelo administrador com sucesso!", "sucesso")
+        flash("Inscrição cancelada pelo administrador!", "sucesso")
     except (regras.ErroValidacao, ValueError) as e:
         flash(str(e), "erro")
     return redirect(request.referrer or url_for("area_socio"))
+
+
+# ================================================================
+# ADMIN - BACKUP
+# ================================================================
+@app.route("/admin/backup", methods=["GET", "POST"])
+@admin_obrigatorio
+def admin_backup():
+    if request.method == "POST":
+        acao = request.form.get("acao", "")
+        
+        if acao == "criar":
+            try:
+                if os.path.exists("clube.db"):
+                    with open("clube.db", 'rb') as f:
+                        dados = f.read()
+                    dados_codificados = base64.b64encode(dados).decode('utf-8')
+                    with open("backup_database.txt", 'w') as f:
+                        f.write(dados_codificados)
+                    flash("✅ Backup criado com sucesso!", "sucesso")
+                else:
+                    flash("❌ Banco não encontrado.", "erro")
+            except Exception as e:
+                flash(f"❌ Erro ao criar backup: {str(e)}", "erro")
+        
+        elif acao == "restaurar":
+            try:
+                if os.path.exists("backup_database.txt"):
+                    with open("backup_database.txt", 'r') as f:
+                        dados_codificados = f.read()
+                    dados = base64.b64decode(dados_codificados)
+                    with open("clube.db", 'wb') as f:
+                        f.write(dados)
+                    flash("✅ Backup restaurado com sucesso!", "sucesso")
+                else:
+                    flash("❌ Arquivo de backup não encontrado.", "erro")
+            except Exception as e:
+                flash(f"❌ Erro ao restaurar: {str(e)}", "erro")
+        
+        return redirect(url_for("admin_backup"))
+    
+    backup_exists = os.path.exists("backup_database.txt")
+    backup_size = os.path.getsize("backup_database.txt") if backup_exists else 0
+    
+    return render_template("admin_backup.html", 
+                          backup_exists=backup_exists,
+                          backup_size=f"{backup_size / 1024:.2f} KB")
+
+
+@app.route("/admin/backup/download")
+@admin_obrigatorio
+def admin_download_backup():
+    try:
+        if not os.path.exists("backup_database.txt"):
+            flash("Backup não encontrado.", "erro")
+            return redirect(url_for("admin_backup"))
+        
+        return send_file(
+            "backup_database.txt",
+            as_attachment=True,
+            download_name=f"backup_clube_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            mimetype="text/plain"
+        )
+    except Exception as e:
+        flash(f"Erro ao baixar: {str(e)}", "erro")
+        return redirect(url_for("admin_backup"))
 
 
 # ================================================================
@@ -1453,14 +1438,6 @@ def area_socio():
             p["categoria"] = None
     
     inscricoes_agrupadas = db.listar_inscricoes_do_socio_por_categoria(socio_id)
-    
-    # Ordena as inscrições dentro de cada categoria por ordem (crescente)
-    for categoria, inscricoes in inscricoes_agrupadas.items():
-        inscricoes_agrupadas[categoria] = sorted(
-            inscricoes,
-            key=lambda x: (x["ordem"] is None, x["ordem"] if x["ordem"] is not None else float('inf'))
-        )
-    
     torneios = db.listar_torneios()
     festivos = db.listar_festivos()
     
@@ -1517,15 +1494,10 @@ def editar_passaro(passaro_id):
         return redirect(url_for("area_socio"))
     
     with db._conexao() as conn:
-        if db.usar_postgres:
-            cur = conn.cursor()
-            cur.execute("SELECT id FROM inscricoes WHERE passaro_id = %s LIMIT 1", (passaro_id,))
-            participou = cur.fetchone()
-        else:
-            participou = conn.execute(
-                "SELECT id FROM inscricoes WHERE passaro_id = ? LIMIT 1",
-                (passaro_id,)
-            ).fetchone()
+        participou = conn.execute(
+            "SELECT id FROM inscricoes WHERE passaro_id = ? LIMIT 1",
+            (passaro_id,)
+        ).fetchone()
     
     if participou:
         if request.method == "POST":
@@ -1537,7 +1509,7 @@ def editar_passaro(passaro_id):
             try:
                 db.editar_passaro(socio_id, passaro_id, nome, sigla_criador, 
                                  numero_anilha, ano_anilha)
-                flash("Solicitação de edição enviada para aprovação do administrador.", "sucesso")
+                flash("Solicitação de edição enviada para aprovação.", "sucesso")
                 return redirect(url_for("area_socio"))
             except (regras.ErroValidacao, ValueError) as e:
                 flash(str(e), "erro")
@@ -1556,23 +1528,13 @@ def editar_passaro(passaro_id):
             
             try:
                 with db._conexao() as conn:
-                    if db.usar_postgres:
-                        cur = conn.cursor()
-                        cur.execute("""
-                            UPDATE passaros SET 
-                                nome = %s, sigla_criador = %s, numero_anilha = %s,
-                                ano_anilha = %s
-                            WHERE id = %s AND socio_id = %s
-                        """, (nome, sigla_criador, numero_anilha, ano_anilha, 
-                              passaro_id, socio_id))
-                    else:
-                        conn.execute("""
-                            UPDATE passaros SET 
-                                nome = ?, sigla_criador = ?, numero_anilha = ?,
-                                ano_anilha = ?
-                            WHERE id = ? AND socio_id = ?
-                        """, (nome, sigla_criador, numero_anilha, ano_anilha, 
-                              passaro_id, socio_id))
+                    conn.execute("""
+                        UPDATE passaros SET 
+                            nome = ?, sigla_criador = ?, numero_anilha = ?,
+                            ano_anilha = ?
+                        WHERE id = ? AND socio_id = ?
+                    """, (nome, sigla_criador, numero_anilha, ano_anilha, 
+                          passaro_id, socio_id))
                 flash("Pássaro atualizado com sucesso!", "sucesso")
                 return redirect(url_for("area_socio"))
             except (regras.ErroValidacao, ValueError) as e:
@@ -1615,45 +1577,24 @@ def editar_perfil():
         
         try:
             with db._conexao() as conn:
-                if db.usar_postgres:
-                    cur = conn.cursor()
-                    cur.execute("""
-                        UPDATE socios SET 
-                            nome = %s, nascimento = %s, sexo = %s, criatorio = %s,
-                            cep = %s, endereco = %s, numero = %s, complemento = %s,
-                            bairro = %s, cidade = %s, uf = %s, pais = %s,
-                            ddi = %s, ddd = %s, celular = %s, whatsapp = %s,
-                            email = %s, facebook = %s, instagram = %s, youtube = %s,
-                            exibir_dados = %s
-                        WHERE id = %s
-                    """, (
-                        nome, nascimento, sexo, criatorio,
-                        cep, endereco, numero, complemento,
-                        bairro, cidade, uf, pais,
-                        ddi, ddd, celular, whatsapp,
-                        email, facebook, instagram, youtube,
-                        1 if exibir_dados else 0,
-                        socio_id
-                    ))
-                else:
-                    conn.execute("""
-                        UPDATE socios SET 
-                            nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
-                            cep = ?, endereco = ?, numero = ?, complemento = ?,
-                            bairro = ?, cidade = ?, uf = ?, pais = ?,
-                            ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
-                            email = ?, facebook = ?, instagram = ?, youtube = ?,
-                            exibir_dados = ?
-                        WHERE id = ?
-                    """, (
-                        nome, nascimento, sexo, criatorio,
-                        cep, endereco, numero, complemento,
-                        bairro, cidade, uf, pais,
-                        ddi, ddd, celular, whatsapp,
-                        email, facebook, instagram, youtube,
-                        1 if exibir_dados else 0,
-                        socio_id
-                    ))
+                conn.execute("""
+                    UPDATE socios SET 
+                        nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
+                        cep = ?, endereco = ?, numero = ?, complemento = ?,
+                        bairro = ?, cidade = ?, uf = ?, pais = ?,
+                        ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
+                        email = ?, facebook = ?, instagram = ?, youtube = ?,
+                        exibir_dados = ?
+                    WHERE id = ?
+                """, (
+                    nome, nascimento, sexo, criatorio,
+                    cep, endereco, numero, complemento,
+                    bairro, cidade, uf, pais,
+                    ddi, ddd, celular, whatsapp,
+                    email, facebook, instagram, youtube,
+                    1 if exibir_dados else 0,
+                    socio_id
+                ))
             
             session["socio_nome"] = nome
             flash("Perfil atualizado com sucesso!", "sucesso")
@@ -1675,7 +1616,7 @@ def transferir_passaro():
         
         try:
             db.solicitar_transferencia(passaro_id, socio_id, cpf_destino)
-            flash("Solicitação de transferência enviada com sucesso!", "sucesso")
+            flash("Solicitação de transferência enviada!", "sucesso")
             return redirect(url_for("transferir_passaro"))
         except (regras.ErroValidacao, ValueError) as e:
             flash(str(e), "erro")
@@ -1696,7 +1637,7 @@ def aceitar_transferencia(transferencia_id):
     socio_id = session["socio_id"]
     try:
         db.aceitar_transferencia(transferencia_id, socio_id)
-        flash("Transferência aceita com sucesso! O pássaro agora é seu.", "sucesso")
+        flash("Transferência aceita! O pássaro agora é seu.", "sucesso")
     except (regras.ErroValidacao, ValueError) as e:
         flash(str(e), "erro")
     return redirect(url_for("transferir_passaro"))
@@ -1727,7 +1668,7 @@ def inscrever_na_etapa(etapa_id):
     socio = db.obter_socio(socio_id)
 
     if not etapa["inscricoes_abertas"] and not session.get("admin_id"):
-        flash("Inscrições para esta etapa estão encerradas.", "erro")
+        flash("Inscrições encerradas.", "erro")
         return redirect(url_for("area_socio"))
 
     total_inscritos = db.contar_inscricoes_na_etapa(etapa_id)
@@ -1747,7 +1688,7 @@ def inscrever_na_etapa(etapa_id):
             inscritos, erros = db.inscrever_multiplos_passaros(etapa_id, passaros_ids, socio_id)
             
             if inscritos:
-                flash(f"{len(inscritos)} pássaro(s) inscrito(s) com sucesso! Aguarde a confirmação do pagamento.", "sucesso")
+                flash(f"{len(inscritos)} pássaro(s) inscrito(s)!", "sucesso")
             if erros:
                 for erro in erros:
                     flash(erro, "erro")
@@ -1755,9 +1696,6 @@ def inscrever_na_etapa(etapa_id):
             flash(str(e), "erro")
         return redirect(url_for("area_socio"))
 
-    # ================================================================
-    # LISTA DE PÁSSAROS COMPATÍVEIS - CORRIGIDO PARA MISTO
-    # ================================================================
     passaros = db.listar_passaros_do_socio(socio_id)
     compativeis = []
     for p in passaros:
@@ -1765,10 +1703,8 @@ def inscrever_na_etapa(etapa_id):
             categoria_passaro = regras.calcular_categoria(p["codigo_ave"])
             categoria_etapa = etapa["categoria"]
             
-            # Se a etapa for MISTO, aceita QUALQUER pássaro (filhote OU adulto)
             if categoria_etapa == "MISTO":
                 compativeis.append(p)
-            # Senão, verifica se a categoria bate exatamente
             elif categoria_passaro == categoria_etapa:
                 compativeis.append(p)
         except regras.ErroValidacao:
@@ -1791,9 +1727,6 @@ def inscrever_na_etapa(etapa_id):
     )
 
 
-# ================================================================
-# INSCRIÇÕES - CANCELAR
-# ================================================================
 @app.route("/area-socio/inscricao/<int:inscricao_id>/cancelar", methods=["POST"])
 @login_obrigatorio
 def cancelar_inscricao(inscricao_id):
@@ -1830,7 +1763,7 @@ def enviar_comprovante(inscricao_id):
         
         try:
             db.registrar_pagamento(inscricao_id, comprovante)
-            flash("Comprovante enviado com sucesso! Aguarde a confirmação do administrador.", "sucesso")
+            flash("Comprovante enviado! Aguarde a confirmação do administrador.", "sucesso")
             return redirect(url_for("area_socio"))
         except ValueError as e:
             flash(str(e), "erro")
@@ -1858,14 +1791,11 @@ def buscar_cep(cep):
 # ================================================================
 def verificar_pagamentos():
     try:
-        logger.info("🔍 Verificando pagamentos pendentes...")
         cancelados = db.verificar_pagamentos_pendentes()
         if cancelados > 0:
             logger.info(f"✅ {cancelados} inscrições canceladas por falta de pagamento.")
-        else:
-            logger.info("✅ Nenhum pagamento pendente.")
     except Exception as e:
-        logger.error(f"❌ Erro ao verificar pagamentos: {e}", exc_info=True)
+        logger.error(f"❌ Erro ao verificar pagamentos: {e}")
 
 
 # ================================================================
@@ -1879,8 +1809,8 @@ if __name__ == "__main__":
             try:
                 verificar_pagamentos()
             except Exception as e:
-                logger.error(f"❌ Erro na thread: {e}", exc_info=True)
-            time.sleep(3600)  # 1 hora
+                logger.error(f"❌ Erro na thread: {e}")
+            time.sleep(3600)
     
     thread = threading.Thread(target=verificar_periodicamente, daemon=True)
     thread.start()
