@@ -7,19 +7,6 @@ SISTEMA GOULARTH DE TORNEIOS — aplicação Flask
 import os
 import sys
 import subprocess
-
-# ================================================================
-# FORÇAR INSTALAÇÃO DO PSYCOPG2 PARA POSTGRESQL
-# ================================================================
-try:
-    import psycopg2
-    print("✅ psycopg2 importado com sucesso!")
-except ImportError:
-    print("❌ psycopg2 não encontrado. Instalando...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "psycopg2-binary==2.9.9"])
-    import psycopg2
-    print("✅ psycopg2 instalado com sucesso!")
-
 import functools
 import datetime
 import threading
@@ -28,6 +15,17 @@ import logging
 from flask import (
     Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 )
+
+# Tenta importar psycopg2, se não conseguir, tenta instalar
+try:
+    import psycopg2
+    print("✅ psycopg2 importado com sucesso!")
+except ImportError:
+    print("⚠️ psycopg2 não encontrado. Tentando instalar...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "psycopg2-binary==2.9.9"])
+    import psycopg2
+    print("✅ psycopg2 instalado com sucesso!")
+
 import banco
 import regras
 
@@ -48,7 +46,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "chave-desenvolvimento-trocar")
 db = banco.BancoClube(os.environ.get("DB_PATH", "clube.db"))
 
 NOMES_MODALIDADE = {"FIBRA": "Fibra", "CANTO_LIVRE": "Canto Livre"}
-NOMES_CATEGORIA = {"FILHOTE": "Filhote", "ADULTO": "Adulto"}
+NOMES_CATEGORIA = {"FILHOTE": "Filhote", "ADULTO": "Adulto", "MISTO": "Misto"}
 
 
 # ================================================================
@@ -651,9 +649,17 @@ def admin_ver_etapa(etapa_id):
     if etapa is None:
         flash("Etapa não encontrada.", "erro")
         return redirect(url_for("admin_dashboard"))
+    
     inscritos = db.listar_inscritos_na_etapa(etapa_id)
+    
+    # Ordena por ordem (crescente) - quem tem ordem NULL vai para o final
+    inscritos_ordenados = sorted(
+        inscritos,
+        key=lambda x: (x["ordem"] is None, x["ordem"] if x["ordem"] is not None else float('inf'))
+    )
+    
     total_inscritos = db.contar_inscricoes_na_etapa(etapa_id)
-    return render_template("admin_ver_etapa.html", etapa=etapa, inscritos=inscritos, total_inscritos=total_inscritos)
+    return render_template("admin_ver_etapa.html", etapa=etapa, inscritos=inscritos_ordenados, total_inscritos=total_inscritos)
 
 
 @app.route("/admin/etapa/<int:etapa_id>/limite", methods=["POST"])
@@ -712,8 +718,14 @@ def admin_lista_apresentacao(etapa_id):
     
     inscritos = db.listar_inscritos_na_etapa(etapa_id)
     
+    # Ordena por ordem (crescente) - quem tem ordem NULL vai para o final
+    inscritos_ordenados = sorted(
+        inscritos,
+        key=lambda x: (x["ordem"] is None, x["ordem"] if x["ordem"] is not None else float('inf'))
+    )
+    
     lista = []
-    for i, ins in enumerate(inscritos, 1):
+    for i, ins in enumerate(inscritos_ordenados, 1):
         lista.append({
             "ordem_sequencial": i,
             "ordem_sistema": ins["ordem"] if ins["ordem"] else "—",
@@ -1113,18 +1125,25 @@ def admin_upload_resultado():
                 if arquivo.filename.lower().endswith('.csv'):
                     db.importar_csv_resultado(caminho_tmp, torneio_nome, categoria, data_etapa)
                 else:
-                    import pandas as pd
-                    df = pd.read_excel(caminho_tmp)
+                    # Usa openpyxl em vez de pandas
+                    from openpyxl import load_workbook
+                    wb = load_workbook(caminho_tmp, data_only=True)
+                    ws = wb.active
+                    
                     resultados = []
-                    for _, row in df.iterrows():
-                        resultados.append({
-                            "posicao": int(row.iloc[0]) if not pd.isna(row.iloc[0]) else 0,
-                            "passaro_nome": str(row.iloc[2]) if not pd.isna(row.iloc[2]) else "",
-                            "anilha": str(row.iloc[3]) if not pd.isna(row.iloc[3]) else "",
-                            "proprietario": str(row.iloc[1]) if not pd.isna(row.iloc[1]) else "",
-                            "tempo": str(row.iloc[4]) if not pd.isna(row.iloc[4]) else "",
-                            "pontos": int(row.iloc[5]) if not pd.isna(row.iloc[5]) else 0
-                        })
+                    for row in ws.iter_rows(min_row=2, values_only=True):
+                        if row and row[0] is not None:
+                            try:
+                                resultados.append({
+                                    "posicao": int(row[0]) if row[0] is not None else 0,
+                                    "passaro_nome": str(row[2]) if row[2] is not None else "",
+                                    "anilha": str(row[3]) if row[3] is not None else "",
+                                    "proprietario": str(row[1]) if row[1] is not None else "",
+                                    "tempo": str(row[4]) if row[4] is not None else "",
+                                    "pontos": int(row[5]) if row[5] is not None else 0
+                                })
+                            except (ValueError, TypeError):
+                                continue
                     
                     if not resultados:
                         raise ValueError("Nenhum dado válido encontrado no Excel.")
@@ -1434,6 +1453,14 @@ def area_socio():
             p["categoria"] = None
     
     inscricoes_agrupadas = db.listar_inscricoes_do_socio_por_categoria(socio_id)
+    
+    # Ordena as inscrições dentro de cada categoria por ordem (crescente)
+    for categoria, inscricoes in inscricoes_agrupadas.items():
+        inscricoes_agrupadas[categoria] = sorted(
+            inscricoes,
+            key=lambda x: (x["ordem"] is None, x["ordem"] if x["ordem"] is not None else float('inf'))
+        )
+    
     torneios = db.listar_torneios()
     festivos = db.listar_festivos()
     
@@ -1728,11 +1755,21 @@ def inscrever_na_etapa(etapa_id):
             flash(str(e), "erro")
         return redirect(url_for("area_socio"))
 
+    # ================================================================
+    # LISTA DE PÁSSAROS COMPATÍVEIS - CORRIGIDO PARA MISTO
+    # ================================================================
     passaros = db.listar_passaros_do_socio(socio_id)
     compativeis = []
     for p in passaros:
         try:
-            if regras.calcular_categoria(p["codigo_ave"]) == etapa["categoria"]:
+            categoria_passaro = regras.calcular_categoria(p["codigo_ave"])
+            categoria_etapa = etapa["categoria"]
+            
+            # Se a etapa for MISTO, aceita QUALQUER pássaro (filhote OU adulto)
+            if categoria_etapa == "MISTO":
+                compativeis.append(p)
+            # Senão, verifica se a categoria bate exatamente
+            elif categoria_passaro == categoria_etapa:
                 compativeis.append(p)
         except regras.ErroValidacao:
             pass
