@@ -955,21 +955,22 @@ class BancoClube:
     def contar_inscricoes_na_etapa(self, etapa_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT COUNT(*) AS total FROM inscricoes WHERE etapa_id = %s", (etapa_id,))
                 linha = cur.fetchone()
+                return linha["total"] if linha else 0
             else:
                 linha = conn.execute(
                     "SELECT COUNT(*) AS total FROM inscricoes WHERE etapa_id = ?",
                     (etapa_id,)
                 ).fetchone()
-            return linha["total"]
+                return linha["total"] if linha else 0
 
     def contar_inscricoes_do_cpf_na_etapa(self, etapa_id, cpf):
         cpf = regras.validar_cpf_formato(cpf)
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT COUNT(*) AS total
                     FROM inscricoes i
@@ -978,6 +979,7 @@ class BancoClube:
                     WHERE i.etapa_id = %s AND s.cpf = %s
                 """, (etapa_id, cpf))
                 linha = cur.fetchone()
+                return linha["total"] if linha else 0
             else:
                 linha = conn.execute("""
                     SELECT COUNT(*) AS total
@@ -986,7 +988,7 @@ class BancoClube:
                     JOIN socios s ON s.id = p.socio_id
                     WHERE i.etapa_id = ? AND s.cpf = ?
                 """, (etapa_id, cpf)).fetchone()
-            return linha["total"]
+                return linha["total"] if linha else 0
 
     # ================================================================
     # SÓCIOS
