@@ -19,13 +19,18 @@ CAMINHO_BANCO_PADRAO = "clube.db"
 
 # Tenta importar psycopg2 para PostgreSQL
 try:
+    try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
     PSYCOPG2_AVAILABLE = True
     print("✅ psycopg2 disponível para PostgreSQL")
-except ImportError:
+except Exception as e:
     PSYCOPG2_AVAILABLE = False
-    print("⚠️ psycopg2 não instalado. Usando SQLite.")
+    print("=" * 60)
+    print("ERRO AO IMPORTAR psycopg2")
+    print(type(e).__name__)
+    print(str(e))
+    print("=" * 60)
 
 
 def _hash_senha(senha, sal=None):
@@ -304,12 +309,10 @@ class BancoClube:
 
     def _migrar_sqlite_para_postgres(self):
         """Migra dados do SQLite para PostgreSQL se existir."""
-        # Verifica se o SQLite existe
         if not os.path.exists(self.caminho_banco):
             print("ℹ️ Nenhum banco SQLite para migrar")
             return
         
-        # Verifica se já tem dados no PostgreSQL
         with self._conexao() as conn:
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM socios")
@@ -322,11 +325,9 @@ class BancoClube:
         print("🔄 Iniciando migração do SQLite para PostgreSQL...")
         
         try:
-            # Conecta ao SQLite
             sqlite_conn = sqlite3.connect(self.caminho_banco)
             sqlite_conn.row_factory = sqlite3.Row
             
-            # Lista de tabelas para migrar
             tabelas = [
                 'socios', 'passaros', 'passaros_edicoes', 'torneios', 
                 'etapas', 'inscricoes', 'resultados', 'ranking_geral',
@@ -335,12 +336,9 @@ class BancoClube:
             
             with self._conexao() as pg_conn:
                 cur = pg_conn.cursor()
-                
-                # Desabilita triggers para migração mais rápida
                 cur.execute("SET session_replication_role = replica;")
                 
                 for tabela in tabelas:
-                    # Verifica se a tabela existe no SQLite
                     sqlite_cur = sqlite_conn.execute(
                         "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
                         (tabela,)
@@ -349,16 +347,12 @@ class BancoClube:
                         print(f"⚠️ Tabela {tabela} não existe no SQLite. Pulando.")
                         continue
                     
-                    # Busca dados do SQLite
                     rows = sqlite_conn.execute(f"SELECT * FROM {tabela}").fetchall()
                     if not rows:
                         print(f"ℹ️ Tabela {tabela} vazia. Pulando.")
                         continue
                     
-                    # Pega nomes das colunas
                     colunas = [desc[0] for desc in sqlite_conn.execute(f"SELECT * FROM {tabela}").description]
-                    
-                    # Prepara INSERT
                     placeholders = ','.join(['%s'] * len(colunas))
                     colunas_str = ','.join(colunas)
                     
@@ -371,7 +365,6 @@ class BancoClube:
                     
                     print(f"✅ {len(rows)} registros migrados da tabela {tabela}")
                 
-                # Reabilita triggers
                 cur.execute("SET session_replication_role = DEFAULT;")
             
             sqlite_conn.close()
@@ -609,7 +602,6 @@ class BancoClube:
             
             shutil.copy2(self.caminho_banco, arquivo_backup)
             
-            # Mantém apenas últimos 10 backups
             backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.db')])
             if len(backups) > 10:
                 for f in backups[:-10]:
@@ -632,20 +624,6 @@ class BancoClube:
             return True
         except Exception as e:
             print(f"❌ Erro ao restaurar: {e}")
-            return False
-
-    def verificar_integridade(self):
-        """Verifica se o banco está íntegro."""
-        try:
-            with self._conexao() as conn:
-                if self.usar_postgres:
-                    cur = conn.cursor()
-                    cur.execute("SELECT 1")
-                else:
-                    conn.execute("SELECT 1")
-            return True
-        except Exception as e:
-            print(f"❌ Banco inacessível: {e}")
             return False
 
     # ================================================================
@@ -2300,9 +2278,7 @@ class BancoClube:
             resultado = {}
             for l in linhas:
                 d = dict(l)
-                # ============================================================
-                # ALTERAÇÃO PARA MISTO - Mostra "Misto" em vez de "FILHOTE" ou "ADULTO"
-                # ============================================================
+                # Para MISTO, mostra "Misto" em vez de "FILHOTE" ou "ADULTO"
                 if d['categoria'] == "MISTO":
                     chave = f"Misto - {d['modalidade']}"
                 else:
