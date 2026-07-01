@@ -19,7 +19,6 @@ CAMINHO_BANCO_PADRAO = "clube.db"
 
 # Tenta importar psycopg2 para PostgreSQL
 try:
-    try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
     PSYCOPG2_AVAILABLE = True
