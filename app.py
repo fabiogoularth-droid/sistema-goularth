@@ -5,12 +5,28 @@ SISTEMA GOULARTH DE TORNEIOS — aplicação Flask
 """
 
 import os
+import sys
 import functools
 import datetime
 import threading
 import time
 import logging
 import base64
+
+# ================================================================
+# FORÇAR POSTGRESQL - DIRETO NO APP.PY
+# ================================================================
+# Se estiver no Render, configura a DATABASE_URL
+if os.environ.get("RENDER") or "onrender.com" in os.environ.get("RENDER_EXTERNAL_URL", ""):
+    # URL do seu banco PostgreSQL no Render
+    DATABASE_URL = "postgresql://sistema_goularth_db_user:62O0R8crJ7qGOiQy8DWAgjValTrBXYc5@dpg-d92nvi3tqb8s73chfn70-a.oregon-postgres.render.com/sistema_goularth_db"
+    
+    # Força a variável de ambiente
+    os.environ["DATABASE_URL"] = DATABASE_URL
+    print("🔧 DATABASE_URL FORÇADA no app.py para PostgreSQL")
+    print(f"📡 URL configurada: {DATABASE_URL[:50]}...")
+
+# Importações do Flask
 from flask import (
     Flask, render_template, request, redirect, url_for, session, flash, jsonify, send_file
 )
@@ -851,14 +867,29 @@ def admin_resultado_manual_salvar():
             return redirect(request.referrer)
         
         with db._conexao() as conn:
-            cur = conn.cursor(cursor_factory=banco.RealDictCursor)
-            cur.execute("""
-                SELECT i.*, e.modalidade 
-                FROM inscricoes i
-                JOIN etapas e ON e.id = i.etapa_id
-                WHERE i.id = %s
-            """, (inscricao_id,))
-            insc = cur.fetchone()
+            if db.usar_postgres:
+                cur = conn.cursor(cursor_factory=banco.RealDictCursor)
+            else:
+                # SQLite - adaptar
+                cur = conn.cursor()
+            
+            # Busca a inscrição
+            if db.usar_postgres:
+                cur.execute("""
+                    SELECT i.*, e.modalidade 
+                    FROM inscricoes i
+                    JOIN etapas e ON e.id = i.etapa_id
+                    WHERE i.id = %s
+                """, (inscricao_id,))
+                insc = cur.fetchone()
+            else:
+                row = conn.execute("""
+                    SELECT i.*, e.modalidade 
+                    FROM inscricoes i
+                    JOIN etapas e ON e.id = i.etapa_id
+                    WHERE i.id = ?
+                """, (inscricao_id,)).fetchone()
+                insc = dict(row) if row else None
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
@@ -895,8 +926,11 @@ def admin_resultado_manual_salvar():
 def admin_resultado_manual_excluir(resultado_id):
     try:
         with db._conexao() as conn:
-            cur = conn.cursor()
-            cur.execute("DELETE FROM resultados WHERE id = %s", (resultado_id,))
+            if db.usar_postgres:
+                cur = conn.cursor()
+                cur.execute("DELETE FROM resultados WHERE id = %s", (resultado_id,))
+            else:
+                conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
         flash("Resultado excluído com sucesso!", "sucesso")
     except Exception as e:
         flash(f"Erro ao excluir: {str(e)}", "erro")
@@ -1341,22 +1375,24 @@ def admin_rejeitar_edicao(edicao_id):
 def admin_cancelar_inscricao(inscricao_id):
     try:
         with db._conexao() as conn:
-            cur = conn.cursor(cursor_factory=banco.RealDictCursor)
-            cur.execute(
-                "SELECT passaro_id FROM inscricoes WHERE id = %s",
-                (inscricao_id,)
-            )
-            insc = cur.fetchone()
+            if db.usar_postgres:
+                cur = conn.cursor(cursor_factory=banco.RealDictCursor)
+                cur.execute("SELECT passaro_id FROM inscricoes WHERE id = %s", (inscricao_id,))
+                insc = cur.fetchone()
+            else:
+                row = conn.execute("SELECT passaro_id FROM inscricoes WHERE id = ?", (inscricao_id,)).fetchone()
+                insc = dict(row) if row else None
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
                 return redirect(request.referrer or url_for("area_socio"))
             
-            cur.execute(
-                "SELECT socio_id FROM passaros WHERE id = %s",
-                (insc["passaro_id"],)
-            )
-            passaro = cur.fetchone()
+            if db.usar_postgres:
+                cur.execute("SELECT socio_id FROM passaros WHERE id = %s", (insc["passaro_id"],))
+                passaro = cur.fetchone()
+            else:
+                row = conn.execute("SELECT socio_id FROM passaros WHERE id = ?", (insc["passaro_id"],)).fetchone()
+                passaro = dict(row) if row else None
             
             if not passaro:
                 flash("Pássaro não encontrado.", "erro")
@@ -1394,7 +1430,6 @@ def admin_backup():
         
         return redirect(url_for("admin_backup"))
     
-    # Verifica se os arquivos de backup existem
     backup_sql_exists = os.path.exists("backup_database.sql")
     backup_txt_exists = os.path.exists("backup_database.txt")
     
@@ -1407,7 +1442,7 @@ def admin_backup():
         backups.append({"nome": "backup_database.txt", "tamanho": f"{size / 1024:.2f} KB"})
     
     total_resultados = db.contar_resultados_importados()
-    db_exists = True  # PostgreSQL sempre existe
+    db_exists = True
     
     return render_template("admin_backup.html", 
                           db_exists=db_exists,
@@ -1488,12 +1523,13 @@ def editar_passaro(passaro_id):
         return redirect(url_for("area_socio"))
     
     with db._conexao() as conn:
-        cur = conn.cursor(cursor_factory=banco.RealDictCursor)
-        cur.execute(
-            "SELECT id FROM inscricoes WHERE passaro_id = %s LIMIT 1",
-            (passaro_id,)
-        )
-        participou = cur.fetchone()
+        if db.usar_postgres:
+            cur = conn.cursor(cursor_factory=banco.RealDictCursor)
+            cur.execute("SELECT id FROM inscricoes WHERE passaro_id = %s LIMIT 1", (passaro_id,))
+            participou = cur.fetchone()
+        else:
+            row = conn.execute("SELECT id FROM inscricoes WHERE passaro_id = ? LIMIT 1", (passaro_id,)).fetchone()
+            participou = dict(row) if row else None
     
     if participou:
         if request.method == "POST":
@@ -1524,14 +1560,23 @@ def editar_passaro(passaro_id):
             
             try:
                 with db._conexao() as conn:
-                    cur = conn.cursor()
-                    cur.execute("""
-                        UPDATE passaros SET 
-                            nome = %s, sigla_criador = %s, numero_anilha = %s,
-                            ano_anilha = %s
-                        WHERE id = %s AND socio_id = %s
-                    """, (nome, sigla_criador, numero_anilha, ano_anilha, 
-                          passaro_id, socio_id))
+                    if db.usar_postgres:
+                        cur = conn.cursor()
+                        cur.execute("""
+                            UPDATE passaros SET 
+                                nome = %s, sigla_criador = %s, numero_anilha = %s,
+                                ano_anilha = %s
+                            WHERE id = %s AND socio_id = %s
+                        """, (nome, sigla_criador, numero_anilha, ano_anilha, 
+                              passaro_id, socio_id))
+                    else:
+                        conn.execute("""
+                            UPDATE passaros SET 
+                                nome = ?, sigla_criador = ?, numero_anilha = ?,
+                                ano_anilha = ?
+                            WHERE id = ? AND socio_id = ?
+                        """, (nome, sigla_criador, numero_anilha, ano_anilha, 
+                              passaro_id, socio_id))
                 flash("Pássaro atualizado com sucesso!", "sucesso")
                 return redirect(url_for("area_socio"))
             except (regras.ErroValidacao, ValueError) as e:
@@ -1574,25 +1619,45 @@ def editar_perfil():
         
         try:
             with db._conexao() as conn:
-                cur = conn.cursor()
-                cur.execute("""
-                    UPDATE socios SET 
-                        nome = %s, nascimento = %s, sexo = %s, criatorio = %s,
-                        cep = %s, endereco = %s, numero = %s, complemento = %s,
-                        bairro = %s, cidade = %s, uf = %s, pais = %s,
-                        ddi = %s, ddd = %s, celular = %s, whatsapp = %s,
-                        email = %s, facebook = %s, instagram = %s, youtube = %s,
-                        exibir_dados = %s
-                    WHERE id = %s
-                """, (
-                    nome, nascimento, sexo, criatorio,
-                    cep, endereco, numero, complemento,
-                    bairro, cidade, uf, pais,
-                    ddi, ddd, celular, whatsapp,
-                    email, facebook, instagram, youtube,
-                    1 if exibir_dados else 0,
-                    socio_id
-                ))
+                if db.usar_postgres:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        UPDATE socios SET 
+                            nome = %s, nascimento = %s, sexo = %s, criatorio = %s,
+                            cep = %s, endereco = %s, numero = %s, complemento = %s,
+                            bairro = %s, cidade = %s, uf = %s, pais = %s,
+                            ddi = %s, ddd = %s, celular = %s, whatsapp = %s,
+                            email = %s, facebook = %s, instagram = %s, youtube = %s,
+                            exibir_dados = %s
+                        WHERE id = %s
+                    """, (
+                        nome, nascimento, sexo, criatorio,
+                        cep, endereco, numero, complemento,
+                        bairro, cidade, uf, pais,
+                        ddi, ddd, celular, whatsapp,
+                        email, facebook, instagram, youtube,
+                        1 if exibir_dados else 0,
+                        socio_id
+                    ))
+                else:
+                    conn.execute("""
+                        UPDATE socios SET 
+                            nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
+                            cep = ?, endereco = ?, numero = ?, complemento = ?,
+                            bairro = ?, cidade = ?, uf = ?, pais = ?,
+                            ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
+                            email = ?, facebook = ?, instagram = ?, youtube = ?,
+                            exibir_dados = ?
+                        WHERE id = ?
+                    """, (
+                        nome, nascimento, sexo, criatorio,
+                        cep, endereco, numero, complemento,
+                        bairro, cidade, uf, pais,
+                        ddi, ddd, celular, whatsapp,
+                        email, facebook, instagram, youtube,
+                        1 if exibir_dados else 0,
+                        socio_id
+                    ))
             
             session["socio_nome"] = nome
             flash("Perfil atualizado com sucesso!", "sucesso")
