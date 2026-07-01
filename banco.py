@@ -16,17 +16,6 @@ import regras
 
 CAMINHO_BANCO_PADRAO = "clube.db"
 
-# ================================================================
-# FORÇAR PostgreSQL NO RENDER
-# ================================================================
-# Se estiver no Render e DATABASE_URL não estiver configurada,
-# usa a URL direta (emergência)
-if os.environ.get("RENDER"):
-    if not os.environ.get("DATABASE_URL"):
-        # URL do seu banco PostgreSQL no Render
-        os.environ["DATABASE_URL"] = "postgresql://sistema_goularth_db_user:62O0R8crJ7qGOiQy8DWAgjValTrBXYc5@dpg-d92nvi3tqb8s73chfn70-a.oregon-postgres.render.com/sistema_goularth_db"
-        print("🔧 DATABASE_URL configurada automaticamente para PostgreSQL no Render")
-
 # Tenta importar psycopg2 para PostgreSQL
 try:
     import psycopg2
@@ -75,15 +64,35 @@ class BancoClube:
     def _conexao(self):
         if self.usar_postgres:
             try:
-                conn = psycopg2.connect(self.db_url)
+                # Tenta conectar com SSL (obrigatório no Render)
+                conn = psycopg2.connect(self.db_url, sslmode='require')
                 try:
                     yield conn
                     conn.commit()
                 finally:
                     conn.close()
             except Exception as e:
-                print(f"❌ Erro PostgreSQL: {e}")
-                raise
+                print(f"❌ Erro PostgreSQL com SSL: {e}")
+                # Fallback: tenta sem SSL
+                try:
+                    conn = psycopg2.connect(self.db_url)
+                    try:
+                        yield conn
+                        conn.commit()
+                    finally:
+                        conn.close()
+                except Exception as e2:
+                    print(f"❌ Erro PostgreSQL sem SSL: {e2}")
+                    # Se falhar, usa SQLite
+                    print("💾 Fallback para SQLite...")
+                    conn = sqlite3.connect(self.caminho_banco)
+                    conn.row_factory = sqlite3.Row
+                    conn.execute("PRAGMA foreign_keys = ON")
+                    try:
+                        yield conn
+                        conn.commit()
+                    finally:
+                        conn.close()
         else:
             conn = sqlite3.connect(self.caminho_banco)
             conn.row_factory = sqlite3.Row
