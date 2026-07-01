@@ -50,10 +50,30 @@ class BancoClube:
         self.db_url = os.environ.get("DATABASE_URL")
         self.usar_postgres = self.db_url is not None and PSYCOPG2_AVAILABLE
         
+        print(f"🔍 DATABASE_URL: {self.db_url[:50] if self.db_url else 'NÃO ENCONTRADA'}...")
+        print(f"🔍 PSYCOPG2_AVAILABLE: {PSYCOPG2_AVAILABLE}")
+        print(f"🔍 usar_postgres: {self.usar_postgres}")
+        
         if self.usar_postgres:
-            print("🐘 Conectando ao PostgreSQL...")
-            self._criar_tabelas_postgres()
-            self._criar_admin_inicial_postgres()
+            print("🐘 Tentando conectar ao PostgreSQL...")
+            # Tenta conectar para testar
+            try:
+                test_conn = psycopg2.connect(self.db_url, sslmode='require')
+                test_conn.close()
+                print("✅ Conexão PostgreSQL OK!")
+            except Exception as e:
+                print(f"❌ Erro ao conectar ao PostgreSQL: {e}")
+                self.usar_postgres = False
+                print("💾 Fallback para SQLite...")
+            
+            if self.usar_postgres:
+                self._criar_tabelas_postgres()
+                self._criar_admin_inicial_postgres()
+            else:
+                print("💾 Usando SQLite...")
+                self._criar_tabelas_sqlite()
+                self._criar_admin_inicial_sqlite()
+                self._migrar_banco_sqlite()
         else:
             print("💾 Usando SQLite...")
             self._criar_tabelas_sqlite()
