@@ -53,8 +53,10 @@
         <span class="tag tag-fibra">{{ nomes_modalidade[etapa.modalidade] }}</span>
         {% if etapa.categoria == 'FILHOTE' %}
             <span class="tag tag-filhote">Filhote</span>
-        {% else %}
+        {% elif etapa.categoria == 'ADULTO' %}
             <span class="tag tag-adulto">Adulto</span>
+        {% else %}
+            <span class="tag" style="background: #6c757d; color: #fff;">Misto</span>
         {% endif %}
         <span class="text-muted">📅 {{ etapa.data_etapa }}</span>
         <span class="text-muted">Total: {{ lista|length }} pássaros</span>
@@ -73,11 +75,7 @@
         </h3>
         <div class="export-buttons">
             <button onclick="window.print()" class="btn btn-dourado btn-sm">🖨️ Imprimir</button>
-            
-            <!-- Botão para exportar padrão (Excel) -->
             <a href="{{ url_for('admin_exportar_lista_apresentacao', etapa_id=etapa.id) }}" class="btn-exportar btn-sm">📤 Exportar Excel</a>
-            
-            <!-- Botão específico para LIVRE (formato Marcador Digital) -->
             {% if etapa.modalidade == 'CANTO_LIVRE' %}
                 <a href="{{ url_for('admin_exportar_lista_livre', etapa_id=etapa.id) }}" class="btn-exportar-livre btn-sm">📤 Exportar LIVRE (Marcador)</a>
             {% endif %}

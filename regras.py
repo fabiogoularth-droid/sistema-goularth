@@ -9,6 +9,9 @@ import datetime
 
 CATEGORIA_FILHOTE = "FILHOTE"
 CATEGORIA_ADULTO = "ADULTO"
+CATEGORIA_MISTO = "MISTO"
+
+CATEGORIAS_VALIDAS = (CATEGORIA_FILHOTE, CATEGORIA_ADULTO, CATEGORIA_MISTO)
 
 MODALIDADE_FIBRA = "FIBRA"
 MODALIDADE_CANTO_LIVRE = "CANTO_LIVRE"
@@ -73,6 +76,21 @@ def calcular_categoria(codigo_ave, ano_referencia=None):
     return CATEGORIA_ADULTO
 
 
+def verificar_categoria_passaro(codigo_ave, categoria_etapa, ano_referencia=None):
+    """
+    Verifica se o pássaro pode participar da etapa.
+    - Se categoria for FILHOTE: só filhotes
+    - Se categoria for ADULTO: só adultos
+    - Se categoria for MISTO: qualquer um (filhote ou adulto)
+    """
+    categoria_passaro = calcular_categoria(codigo_ave, ano_referencia)
+    
+    if categoria_etapa == CATEGORIA_MISTO:
+        return True
+    
+    return categoria_passaro == categoria_etapa
+
+
 # ================================================================
 # VALIDAÇÃO DE CÓDIGOS
 # ================================================================
@@ -115,8 +133,10 @@ def normalizar_modalidade(modalidade):
 
 def normalizar_categoria(categoria):
     categoria_norm = str(categoria).strip().upper()
-    if categoria_norm not in (CATEGORIA_FILHOTE, CATEGORIA_ADULTO):
-        raise ErroValidacao("Categoria inválida. Use Filhote ou Adulto.")
+    if categoria_norm not in CATEGORIAS_VALIDAS:
+        raise ErroValidacao(
+            f"Categoria inválida. Use Filhote, Adulto ou Misto."
+        )
     return categoria_norm
 
 

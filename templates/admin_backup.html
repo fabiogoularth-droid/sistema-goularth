@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>💾 Gerenciamento de Backups</h2>
+    <p class="text-muted">Crie e restaure backups do banco de dados.</p>
+</div>
+
+<div class="card">
+    <h3>📊 Status do Banco</h3>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+        <div class="card" style="background: #f8f9fa; text-align: center;">
+            <div style="font-size: 24px; font-weight: bold; color: #C9980E;">
+                {{ "✅" if db_exists else "❌" }}
+            </div>
+            <div class="text-muted">Banco existe</div>
+        </div>
+        <div class="card" style="background: #f8f9fa; text-align: center;">
+            <div style="font-size: 24px; font-weight: bold; color: #C9980E;">
+                {{ db_size }}
+            </div>
+            <div class="text-muted">Tamanho</div>
+        </div>
+        <div class="card" style="background: #f8f9fa; text-align: center;">
+            <div style="font-size: 24px; font-weight: bold; color: #C9980E;">
+                {{ total_resultados }}
+            </div>
+            <div class="text-muted">Resultados importados</div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h3>📥 Criar Backup</h3>
+    <form method="POST">
+        <input type="hidden" name="acao" value="criar">
+        <button type="submit" class="btn btn-dourado">💾 Criar Backup Agora</button>
+    </form>
+    <p class="text-muted" style="margin-top: 10px;">O backup será salvo na pasta <code>backups/</code></p>
+</div>
+
+<div class="card">
+    <h3>📤 Restaurar Backup</h3>
+    {% if backups %}
+        <form method="POST">
+            <input type="hidden" name="acao" value="restaurar">
+            <div class="form-group">
+                <label>Selecione o backup para restaurar</label>
+                <select name="backup_file" required>
+                    <option value="">Selecione...</option>
+                    {% for b in backups %}
+                        <option value="{{ b }}">{{ b }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flash" style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; margin-bottom: 15px;">
+                ⚠️ <strong>Atenção:</strong> Restaurar um backup irá <strong>substituir todos os dados atuais</strong> pelos dados do backup selecionado. 
+                <br>Um backup automático será criado antes da restauração.
+            </div>
+            <button type="submit" class="btn" style="background: #8B4226; color: #fff;" onclick="return confirm('Tem certeza que deseja restaurar este backup? Os dados atuais serão perdidos.')">
+                🔄 Restaurar Backup
+            </button>
+        </form>
+    {% else %}
+        <p class="text-muted">Nenhum backup disponível.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

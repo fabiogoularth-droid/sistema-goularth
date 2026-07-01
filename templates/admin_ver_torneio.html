@@ -35,8 +35,10 @@
                     <td>
                         {% if e.categoria == 'FILHOTE' %}
                             <span class="tag tag-filhote">Filhote</span>
-                        {% else %}
+                        {% elif e.categoria == 'ADULTO' %}
                             <span class="tag tag-adulto">Adulto</span>
+                        {% else %}
+                            <span class="tag" style="background: #6c757d; color: #fff;">Misto</span>
                         {% endif %}
                     </td>
                     <td>{{ e.data_etapa }}</td>

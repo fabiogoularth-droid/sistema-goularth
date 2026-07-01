@@ -1,0 +1,6 @@
+echo "__pycache__/
+*.pyc
+*.db
+*.log
+backup_*.txt
+" > .gitignore

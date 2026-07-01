@@ -22,6 +22,7 @@
                 <select name="categoria" required>
                     <option value="FILHOTE" {% if etapa.categoria == 'FILHOTE' %}selected{% endif %}>Filhote</option>
                     <option value="ADULTO" {% if etapa.categoria == 'ADULTO' %}selected{% endif %}>Adulto</option>
+                    <option value="MISTO" {% if etapa.categoria == 'MISTO' %}selected{% endif %}>Misto (Filhotes e Adultos juntos)</option>
                 </select>
             </div>
         </div>
@@ -46,6 +47,15 @@
             <label>Limite Total de Inscrições</label>
             <input type="number" name="limite_inscricoes" value="{{ etapa.limite_inscricoes or '' }}" placeholder="Ex: 30 (deixe vazio para ilimitado)">
             <div class="hint">Número máximo de inscrições permitidas nesta etapa.</div>
+        </div>
+        
+        <div class="form-group">
+            <label>Informações de Pagamento</label>
+            <textarea name="info_pagamento" rows="4">{{ etapa.info_pagamento or '' }}</textarea>
+        </div>
+        <div class="form-group">
+            <label>Prazo para Pagamento</label>
+            <input type="datetime-local" name="prazo_pagamento" value="{{ etapa.prazo_pagamento or '' }}">
         </div>
         
         <button type="submit" class="btn btn-dourado" style="width: 100%;">Salvar Alterações</button>

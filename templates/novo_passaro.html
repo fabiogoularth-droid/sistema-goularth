@@ -3,6 +3,14 @@
 {% block content %}
 <div class="card" style="max-width: 640px; margin: 0 auto;">
     <h2>🐦 Cadastrar Pássaro</h2>
+    
+    {% if passaro_cadastrado %}
+    <div class="flash sucesso" style="margin-bottom: 20px;">
+        ✅ Pássaro <strong>{{ passaro_cadastrado }}</strong> cadastrado com sucesso!<br>
+        <span style="font-size: 14px;">Continue cadastrando mais pássaros ou <a href="{{ url_for('area_socio') }}">volte para Minha Área</a>.</span>
+    </div>
+    {% endif %}
+    
     <form method="POST">
         <div class="form-group">
             <label>Nome do Pássaro *</label>
@@ -36,21 +44,13 @@
             </div>
         </div>
         
-        <div class="form-group">
-            <label>Cor</label>
-            <input type="text" name="cor" placeholder="Ex: Amarelo" value="{{ cor or '' }}">
-        </div>
+        <button type="submit" class="btn btn-dourado" style="width: 100%; padding: 14px;">
+            📝 Cadastrar Pássaro
+        </button>
         
-        <div class="form-group">
-            <label>Anotações</label>
-            <textarea name="anotacoes" rows="3">{{ anotacoes or '' }}</textarea>
+        <div style="margin-top: 10px; text-align: center;">
+            <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">⬅️ Voltar para Minha Área</a>
         </div>
-        
-        <button type="submit" class="btn btn-dourado" style="width: 100%; padding: 14px;">Cadastrar Pássaro</button>
     </form>
-    
-    <div class="text-center mt-20">
-        <a href="{{ url_for('area_socio') }}" class="btn btn-outline btn-sm">Voltar</a>
-    </div>
 </div>
 {% endblock %}
