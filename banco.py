@@ -73,7 +73,6 @@ class BancoClube:
         if self.usar_postgres:
             try:
                 conn = psycopg2.connect(self.db_url)
-                conn.row_factory = RealDictCursor
                 try:
                     yield conn
                     conn.commit()
@@ -97,7 +96,6 @@ class BancoClube:
         with self._conexao() as conn:
             cur = conn.cursor()
             
-            # Tabela socios
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS socios (
                     id SERIAL PRIMARY KEY,
@@ -131,7 +129,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela passaros
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS passaros (
                     id SERIAL PRIMARY KEY,
@@ -145,7 +142,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela passaros_edicoes
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS passaros_edicoes (
                     id SERIAL PRIMARY KEY,
@@ -160,7 +156,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela torneios
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS torneios (
                     id SERIAL PRIMARY KEY,
@@ -171,7 +166,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela etapas
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS etapas (
                     id SERIAL PRIMARY KEY,
@@ -191,7 +185,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela inscricoes
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS inscricoes (
                     id SERIAL PRIMARY KEY,
@@ -205,7 +198,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela resultados
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS resultados (
                     id SERIAL PRIMARY KEY,
@@ -222,7 +214,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela ranking_geral
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS ranking_geral (
                     id SERIAL PRIMARY KEY,
@@ -235,7 +226,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela pagamentos
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS pagamentos (
                     id SERIAL PRIMARY KEY,
@@ -247,7 +237,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela admin
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS admin (
                     id SERIAL PRIMARY KEY,
@@ -259,7 +248,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela resultados_importados
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS resultados_importados (
                     id SERIAL PRIMARY KEY,
@@ -276,7 +264,6 @@ class BancoClube:
                 )
             """)
             
-            # Tabela transferencias
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS transferencias (
                     id SERIAL PRIMARY KEY,
@@ -588,38 +575,32 @@ class BancoClube:
     # BACKUP
     # ================================================================
     def fazer_backup(self):
-        """Faz backup do banco de dados atual."""
         try:
+            import base64
             if not os.path.exists(self.caminho_banco):
-                return None
-            
-            backup_dir = "backups"
-            os.makedirs(backup_dir, exist_ok=True)
-            
-            data = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-            arquivo_backup = f"{backup_dir}/clube_{data}.db"
-            
-            shutil.copy2(self.caminho_banco, arquivo_backup)
-            
-            backups = sorted([f for f in os.listdir(backup_dir) if f.endswith('.db')])
-            if len(backups) > 10:
-                for f in backups[:-10]:
-                    os.remove(os.path.join(backup_dir, f))
-            
-            print(f"✅ Backup criado: {arquivo_backup}")
-            return arquivo_backup
+                return False
+            with open(self.caminho_banco, 'rb') as f:
+                dados = f.read()
+            dados_codificados = base64.b64encode(dados).decode('utf-8')
+            with open("backup_database.txt", 'w') as f:
+                f.write(dados_codificados)
+            print("✅ Backup criado")
+            return True
         except Exception as e:
             print(f"❌ Erro no backup: {e}")
-            return None
+            return False
 
-    def restaurar_backup(self, arquivo_backup):
-        """Restaura um backup."""
+    def restaurar_backup(self):
         try:
-            if not os.path.exists(arquivo_backup):
-                raise ValueError("Arquivo de backup não encontrado")
-            
-            shutil.copy2(arquivo_backup, self.caminho_banco)
-            print(f"✅ Backup restaurado: {arquivo_backup}")
+            import base64
+            if not os.path.exists("backup_database.txt"):
+                return False
+            with open("backup_database.txt", 'r') as f:
+                dados_codificados = f.read()
+            dados = base64.b64decode(dados_codificados)
+            with open(self.caminho_banco, 'wb') as f:
+                f.write(dados)
+            print("✅ Backup restaurado")
             return True
         except Exception as e:
             print(f"❌ Erro ao restaurar: {e}")
@@ -631,7 +612,7 @@ class BancoClube:
     def obter_admin(self, admin_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM admin WHERE id = %s", (admin_id,))
                 linha = cur.fetchone()
             else:
@@ -641,7 +622,7 @@ class BancoClube:
     def autenticar_admin(self, email, senha):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM admin WHERE email = %s", (email,))
                 linha = cur.fetchone()
             else:
@@ -697,7 +678,7 @@ class BancoClube:
     def listar_admins(self):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT id, nome, email, nivel, criado_em FROM admin ORDER BY nivel")
                 linhas = cur.fetchall()
             else:
@@ -795,7 +776,7 @@ class BancoClube:
     def listar_torneios(self):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM torneios ORDER BY criado_em DESC")
                 linhas = cur.fetchall()
             else:
@@ -805,7 +786,7 @@ class BancoClube:
     def obter_torneio(self, torneio_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM torneios WHERE id = %s", (torneio_id,))
                 linha = cur.fetchone()
             else:
@@ -893,7 +874,7 @@ class BancoClube:
     def listar_etapas_do_torneio(self, torneio_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT e.*, 
                            (SELECT COUNT(*) FROM inscricoes WHERE etapa_id = e.id) AS inscricoes_count
@@ -915,14 +896,13 @@ class BancoClube:
     def listar_festivos(self):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT e.*, 
                            (SELECT COUNT(*) FROM inscricoes WHERE etapa_id = e.id) AS inscricoes_count
                     FROM etapas e 
                     WHERE e.torneio_id IS NULL 
-                    ORDER BY e.data_etapa
-                """)
+                    ORDER BY e.data_etapa                """)
                 linhas = cur.fetchall()
             else:
                 linhas = conn.execute("""
@@ -937,7 +917,7 @@ class BancoClube:
     def obter_etapa(self, etapa_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM etapas WHERE id = %s", (etapa_id,))
                 linha = cur.fetchone()
             else:
@@ -1095,7 +1075,7 @@ class BancoClube:
         cpf = regras.validar_cpf_formato(cpf)
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM socios WHERE cpf = %s", (cpf,))
                 linha = cur.fetchone()
             else:
@@ -1110,7 +1090,7 @@ class BancoClube:
     def obter_socio(self, socio_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM socios WHERE id = %s", (socio_id,))
                 linha = cur.fetchone()
             else:
@@ -1180,7 +1160,7 @@ class BancoClube:
     def listar_passaros_do_socio(self, socio_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM passaros WHERE socio_id = %s ORDER BY nome", (socio_id,))
                 linhas = cur.fetchall()
             else:
@@ -1192,7 +1172,7 @@ class BancoClube:
     def obter_passaro(self, passaro_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM passaros WHERE id = %s", (passaro_id,))
                 linha = cur.fetchone()
             else:
@@ -1253,7 +1233,7 @@ class BancoClube:
     def listar_edicoes_pendentes(self):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         e.id AS edicao_id,
@@ -1407,7 +1387,7 @@ class BancoClube:
     def _atualizar_ranking(self, inscricao_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT i.id, i.etapa_id, i.passaro_id, p.socio_id,
                            r.media, r.classificacao
@@ -1471,7 +1451,7 @@ class BancoClube:
     def obter_resultados_etapa(self, etapa_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         r.id AS resultado_id,
@@ -1519,7 +1499,7 @@ class BancoClube:
     def obter_ranking_geral(self, limite=None):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 if limite:
                     query = """
                         SELECT 
@@ -1593,7 +1573,7 @@ class BancoClube:
     def obter_ranking_por_modalidade(self, modalidade, limite=None):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 if limite:
                     query = """
                         SELECT 
@@ -1675,7 +1655,7 @@ class BancoClube:
     def obter_ranking_passaros(self, limite=None):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 if limite:
                     query = """
                         SELECT 
@@ -1873,7 +1853,7 @@ class BancoClube:
         """Lista todas as etapas já importadas."""
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 if categoria:
                     cur.execute("""
                         SELECT 
@@ -1932,7 +1912,7 @@ class BancoClube:
         """Retorna os resultados de uma etapa específica."""
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT posicao, passaro_nome, anilha, proprietario, tempo, pontos
                     FROM resultados_importados
@@ -1954,7 +1934,7 @@ class BancoClube:
         try:
             with self._conexao() as conn:
                 if self.usar_postgres:
-                    cur = conn.cursor()
+                    cur = conn.cursor(cursor_factory=RealDictCursor)
                     cur.execute("SELECT COUNT(*) as total FROM resultados_importados")
                     total = cur.fetchone()
                 else:
@@ -1964,7 +1944,7 @@ class BancoClube:
                     return []
                 
                 if self.usar_postgres:
-                    cur = conn.cursor()
+                    cur = conn.cursor(cursor_factory=RealDictCursor)
                     if categoria:
                         query = """
                             SELECT 
@@ -2053,7 +2033,7 @@ class BancoClube:
         try:
             with self._conexao() as conn:
                 if self.usar_postgres:
-                    cur = conn.cursor()
+                    cur = conn.cursor(cursor_factory=RealDictCursor)
                     cur.execute("SELECT DISTINCT categoria FROM resultados_importados ORDER BY categoria")
                     linhas = cur.fetchall()
                 else:
@@ -2068,7 +2048,7 @@ class BancoClube:
         """Exporta a lista de inscritos para o formato do Marcador Digital."""
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT passaro_nome, anilha, proprietario
                     FROM resultados_importados
@@ -2111,7 +2091,7 @@ class BancoClube:
         try:
             with self._conexao() as conn:
                 if self.usar_postgres:
-                    cur = conn.cursor()
+                    cur = conn.cursor(cursor_factory=RealDictCursor)
                     cur.execute("SELECT COUNT(*) as total FROM resultados_importados")
                     linha = cur.fetchone()
                 else:
@@ -2127,7 +2107,7 @@ class BancoClube:
         """Lista todos os criadores com seus dados de contato."""
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 if busca:
                     query = """
                         SELECT 
@@ -2180,7 +2160,7 @@ class BancoClube:
         """Retorna os dados públicos de um criador."""
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         id, nome, criatorio, ddi, ddd, celular, whatsapp, email,
@@ -2206,7 +2186,7 @@ class BancoClube:
         """Retorna as inscrições do sócio agrupadas por categoria."""
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         i.id AS inscricao_id,
@@ -2298,7 +2278,7 @@ class BancoClube:
             try:
                 with self._conexao() as conn:
                     if self.usar_postgres:
-                        cur = conn.cursor()
+                        cur = conn.cursor(cursor_factory=RealDictCursor)
                         cur.execute("SELECT * FROM passaros WHERE id = %s AND socio_id = %s", (passaro_id, socio_id))
                         passaro = cur.fetchone()
                     else:
@@ -2327,7 +2307,7 @@ class BancoClube:
     def solicitar_transferencia(self, passaro_id, socio_origem_id, cpf_destino):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM passaros WHERE id = %s AND socio_id = %s", (passaro_id, socio_origem_id))
                 passaro = cur.fetchone()
                 if not passaro:
@@ -2387,7 +2367,7 @@ class BancoClube:
     def listar_transferencias_pendentes(self, socio_id=None):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 if socio_id:
                     cur.execute("""
                         SELECT 
@@ -2473,7 +2453,7 @@ class BancoClube:
     def listar_transferencias_enviadas(self, socio_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         t.id as transferencia_id,
@@ -2655,7 +2635,7 @@ class BancoClube:
 
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM passaros WHERE id = %s", (passaro_id,))
                 passaro = cur.fetchone()
             else:
@@ -2685,7 +2665,7 @@ class BancoClube:
                     )
 
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("SELECT * FROM socios WHERE id = %s", (socio_id,))
                 socio = cur.fetchone()
             else:
@@ -2816,7 +2796,7 @@ class BancoClube:
     def listar_inscricoes_do_socio(self, socio_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         i.id AS inscricao_id,
@@ -2898,7 +2878,7 @@ class BancoClube:
     def listar_inscritos_na_etapa(self, etapa_id):
         with self._conexao() as conn:
             if self.usar_postgres:
-                cur = conn.cursor()
+                cur = conn.cursor(cursor_factory=RealDictCursor)
                 cur.execute("""
                     SELECT 
                         i.id AS inscricao_id,
