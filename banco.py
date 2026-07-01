@@ -702,7 +702,7 @@ class BancoClube:
                     "INSERT INTO torneios (nome, endereco, mapa_url, criado_em) VALUES (%s, %s, %s, %s) RETURNING id",
                     (nome.strip(), endereco, mapa_url, datetime.datetime.now().isoformat())
                 )
-                return cur.fetchone()[0]
+                return cur.fetchone()["id"]
             else:
                 cursor = conn.execute(
                     "INSERT INTO torneios (nome, endereco, mapa_url, criado_em) VALUES (?, ?, ?, ?)",
@@ -774,7 +774,7 @@ class BancoClube:
                     info_pagamento, prazo_pagamento,
                     datetime.datetime.now().isoformat()
                 ))
-                return cur.fetchone()[0]
+                return cur.fetchone()["id"]
             else:
                 cursor = conn.execute("""
                     INSERT INTO etapas (
@@ -982,7 +982,7 @@ class BancoClube:
                     dados.get("youtube"), 1 if dados.get("exibir_dados") else 0,
                     _hash_senha(senha), datetime.datetime.now().isoformat()
                 ))
-                return cur.fetchone()[0]
+                return cur.fetchone()["id"]
             else:
                 existente = conn.execute(
                     "SELECT id FROM socios WHERE cpf = ? OR codigo_socio = ?",
@@ -1080,7 +1080,7 @@ class BancoClube:
                     socio_id, nome, sigla_criador, numero_anilha, ano_anilha,
                     codigo_ave, datetime.datetime.now().isoformat()
                 ))
-                return cur.fetchone()[0]
+                return cur.fetchone()["id"]
             else:
                 existente = conn.execute("SELECT id FROM passaros WHERE codigo_ave = ?", (codigo_ave,)).fetchone()
                 if existente:
@@ -1911,7 +1911,7 @@ class BancoClube:
                     INSERT INTO transferencias (passaro_id, socio_origem_id, socio_destino_id, cpf_destino, status, criado_em)
                     VALUES (%s, %s, %s, %s, 'pendente', %s) RETURNING id
                 """, (passaro_id, socio_origem_id, socio_destino["id"], cpf_destino, datetime.datetime.now().isoformat()))
-                return cur.fetchone()[0]
+                return cur.fetchone()["id"]
             else:
                 passaro = conn.execute("SELECT * FROM passaros WHERE id = ? AND socio_id = ?", (passaro_id, socio_origem_id)).fetchone()
                 if not passaro:
@@ -2180,7 +2180,7 @@ class BancoClube:
                     INSERT INTO inscricoes (etapa_id, passaro_id, ordem, criado_em) 
                     VALUES (%s, %s, %s, %s) RETURNING id
                 """, (etapa_id, passaro_id, ordem_escolhida, datetime.datetime.now().isoformat()))
-                return cur.fetchone()[0]
+                return cur.fetchone()["id"]
             else:
                 passaro = conn.execute("SELECT * FROM passaros WHERE id = ?", (passaro_id,)).fetchone()
                 if passaro is None:
