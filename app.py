@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "chave-desenvolvimento-trocar")
 
-db = banco.BancoClube("clube.db")
+db = banco.BancoClube()
 
 NOMES_MODALIDADE = {"FIBRA": "Fibra", "CANTO_LIVRE": "Canto Livre"}
 NOMES_CATEGORIA = {"FILHOTE": "Filhote", "ADULTO": "Adulto", "MISTO": "Misto"}
@@ -112,12 +112,10 @@ def injetar_globais():
 @app.route("/health")
 def health_check():
     try:
-        db_exists = os.path.exists("clube.db")
-        db_size = os.path.getsize("clube.db") if db_exists else 0
+        total_resultados = db.contar_resultados_importados()
         return jsonify({
             "status": "ok",
-            "banco_existe": db_exists,
-            "banco_tamanho": f"{db_size / 1024:.2f} KB",
+            "resultados_importados": total_resultados,
             "timestamp": datetime.datetime.now().isoformat()
         })
     except Exception as e:
@@ -853,12 +851,14 @@ def admin_resultado_manual_salvar():
             return redirect(request.referrer)
         
         with db._conexao() as conn:
-            insc = conn.execute("""
+            cur = conn.cursor(cursor_factory=banco.RealDictCursor)
+            cur.execute("""
                 SELECT i.*, e.modalidade 
                 FROM inscricoes i
                 JOIN etapas e ON e.id = i.etapa_id
-                WHERE i.id = ?
-            """, (inscricao_id,)).fetchone()
+                WHERE i.id = %s
+            """, (inscricao_id,))
+            insc = cur.fetchone()
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
@@ -868,7 +868,10 @@ def admin_resultado_manual_salvar():
                 if not tempo_final:
                     flash("Tempo Final é obrigatório para Canto Livre.", "erro")
                     return redirect(request.referrer)
-                notas = [0, 0, 0, 0, 0]
+                try:
+                    notas = [float(tempo_final.replace(":", ".")), 0, 0, 0, 0]
+                except:
+                    notas = [0, 0, 0, 0, 0]
             else:
                 if not tempo_parcial or not tempo_final:
                     flash("Tempo Parcial e Tempo Final são obrigatórios para Fibra.", "erro")
@@ -892,7 +895,8 @@ def admin_resultado_manual_salvar():
 def admin_resultado_manual_excluir(resultado_id):
     try:
         with db._conexao() as conn:
-            conn.execute("DELETE FROM resultados WHERE id = ?", (resultado_id,))
+            cur = conn.cursor()
+            cur.execute("DELETE FROM resultados WHERE id = %s", (resultado_id,))
         flash("Resultado excluído com sucesso!", "sucesso")
     except Exception as e:
         flash(f"Erro ao excluir: {str(e)}", "erro")
@@ -921,13 +925,19 @@ def admin_resultados_etapa(etapa_id):
             if classificacao:
                 try:
                     if etapa["modalidade"] == "CANTO_LIVRE":
-                        notas = [float(tempo_final.replace(":", ".")) if tempo_final else 0, 0, 0, 0, 0]
+                        try:
+                            notas = [float(tempo_final.replace(":", ".")) if tempo_final else 0, 0, 0, 0, 0]
+                        except:
+                            notas = [0, 0, 0, 0, 0]
                     else:
-                        notas = [
-                            float(tempo_parcial.replace(":", ".")) if tempo_parcial else 0,
-                            float(tempo_final.replace(":", ".")) if tempo_final else 0,
-                            0, 0, 0
-                        ]
+                        try:
+                            notas = [
+                                float(tempo_parcial.replace(":", ".")) if tempo_parcial else 0,
+                                float(tempo_final.replace(":", ".")) if tempo_final else 0,
+                                0, 0, 0
+                            ]
+                        except:
+                            notas = [0, 0, 0, 0, 0]
                     db.salvar_resultado_inscricao(inscricao_id, notas, classificacao)
                 except Exception as e:
                     flash(f"Erro ao salvar {ins['passaro_nome']}: {str(e)}", "erro")
@@ -1331,19 +1341,22 @@ def admin_rejeitar_edicao(edicao_id):
 def admin_cancelar_inscricao(inscricao_id):
     try:
         with db._conexao() as conn:
-            insc = conn.execute(
-                "SELECT passaro_id FROM inscricoes WHERE id = ?",
+            cur = conn.cursor(cursor_factory=banco.RealDictCursor)
+            cur.execute(
+                "SELECT passaro_id FROM inscricoes WHERE id = %s",
                 (inscricao_id,)
-            ).fetchone()
+            )
+            insc = cur.fetchone()
             
             if not insc:
                 flash("Inscrição não encontrada.", "erro")
                 return redirect(request.referrer or url_for("area_socio"))
             
-            passaro = conn.execute(
-                "SELECT socio_id FROM passaros WHERE id = ?",
+            cur.execute(
+                "SELECT socio_id FROM passaros WHERE id = %s",
                 (insc["passaro_id"],)
-            ).fetchone()
+            )
+            passaro = cur.fetchone()
             
             if not passaro:
                 flash("Pássaro não encontrado.", "erro")
@@ -1367,59 +1380,40 @@ def admin_backup():
         
         if acao == "criar":
             try:
-                if os.path.exists("clube.db"):
-                    with open("clube.db", 'rb') as f:
-                        dados = f.read()
-                    dados_codificados = base64.b64encode(dados).decode('utf-8')
-                    with open("backup_database.txt", 'w') as f:
-                        f.write(dados_codificados)
-                    flash("✅ Backup criado com sucesso!", "sucesso")
-                else:
-                    flash("❌ Banco não encontrado.", "erro")
+                db.fazer_backup()
+                flash("✅ Backup criado com sucesso!", "sucesso")
             except Exception as e:
                 flash(f"❌ Erro ao criar backup: {str(e)}", "erro")
         
         elif acao == "restaurar":
             try:
-                if os.path.exists("backup_database.txt"):
-                    with open("backup_database.txt", 'r') as f:
-                        dados_codificados = f.read()
-                    dados = base64.b64decode(dados_codificados)
-                    with open("clube.db", 'wb') as f:
-                        f.write(dados)
-                    flash("✅ Backup restaurado com sucesso!", "sucesso")
-                else:
-                    flash("❌ Arquivo de backup não encontrado.", "erro")
+                db.restaurar_backup()
+                flash("✅ Backup restaurado com sucesso!", "sucesso")
             except Exception as e:
                 flash(f"❌ Erro ao restaurar: {str(e)}", "erro")
         
         return redirect(url_for("admin_backup"))
     
-    backup_exists = os.path.exists("backup_database.txt")
-    backup_size = os.path.getsize("backup_database.txt") if backup_exists else 0
+    # Verifica se os arquivos de backup existem
+    backup_sql_exists = os.path.exists("backup_database.sql")
+    backup_txt_exists = os.path.exists("backup_database.txt")
+    
+    backups = []
+    if backup_sql_exists:
+        size = os.path.getsize("backup_database.sql")
+        backups.append({"nome": "backup_database.sql", "tamanho": f"{size / 1024:.2f} KB"})
+    if backup_txt_exists:
+        size = os.path.getsize("backup_database.txt")
+        backups.append({"nome": "backup_database.txt", "tamanho": f"{size / 1024:.2f} KB"})
+    
+    total_resultados = db.contar_resultados_importados()
+    db_exists = True  # PostgreSQL sempre existe
     
     return render_template("admin_backup.html", 
-                          backup_exists=backup_exists,
-                          backup_size=f"{backup_size / 1024:.2f} KB")
-
-
-@app.route("/admin/backup/download")
-@admin_obrigatorio
-def admin_download_backup():
-    try:
-        if not os.path.exists("backup_database.txt"):
-            flash("Backup não encontrado.", "erro")
-            return redirect(url_for("admin_backup"))
-        
-        return send_file(
-            "backup_database.txt",
-            as_attachment=True,
-            download_name=f"backup_clube_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
-            mimetype="text/plain"
-        )
-    except Exception as e:
-        flash(f"Erro ao baixar: {str(e)}", "erro")
-        return redirect(url_for("admin_backup"))
+                          db_exists=db_exists,
+                          db_size="N/A (PostgreSQL)",
+                          total_resultados=total_resultados,
+                          backups=backups)
 
 
 # ================================================================
@@ -1494,10 +1488,12 @@ def editar_passaro(passaro_id):
         return redirect(url_for("area_socio"))
     
     with db._conexao() as conn:
-        participou = conn.execute(
-            "SELECT id FROM inscricoes WHERE passaro_id = ? LIMIT 1",
+        cur = conn.cursor(cursor_factory=banco.RealDictCursor)
+        cur.execute(
+            "SELECT id FROM inscricoes WHERE passaro_id = %s LIMIT 1",
             (passaro_id,)
-        ).fetchone()
+        )
+        participou = cur.fetchone()
     
     if participou:
         if request.method == "POST":
@@ -1528,11 +1524,12 @@ def editar_passaro(passaro_id):
             
             try:
                 with db._conexao() as conn:
-                    conn.execute("""
+                    cur = conn.cursor()
+                    cur.execute("""
                         UPDATE passaros SET 
-                            nome = ?, sigla_criador = ?, numero_anilha = ?,
-                            ano_anilha = ?
-                        WHERE id = ? AND socio_id = ?
+                            nome = %s, sigla_criador = %s, numero_anilha = %s,
+                            ano_anilha = %s
+                        WHERE id = %s AND socio_id = %s
                     """, (nome, sigla_criador, numero_anilha, ano_anilha, 
                           passaro_id, socio_id))
                 flash("Pássaro atualizado com sucesso!", "sucesso")
@@ -1577,15 +1574,16 @@ def editar_perfil():
         
         try:
             with db._conexao() as conn:
-                conn.execute("""
+                cur = conn.cursor()
+                cur.execute("""
                     UPDATE socios SET 
-                        nome = ?, nascimento = ?, sexo = ?, criatorio = ?,
-                        cep = ?, endereco = ?, numero = ?, complemento = ?,
-                        bairro = ?, cidade = ?, uf = ?, pais = ?,
-                        ddi = ?, ddd = ?, celular = ?, whatsapp = ?,
-                        email = ?, facebook = ?, instagram = ?, youtube = ?,
-                        exibir_dados = ?
-                    WHERE id = ?
+                        nome = %s, nascimento = %s, sexo = %s, criatorio = %s,
+                        cep = %s, endereco = %s, numero = %s, complemento = %s,
+                        bairro = %s, cidade = %s, uf = %s, pais = %s,
+                        ddi = %s, ddd = %s, celular = %s, whatsapp = %s,
+                        email = %s, facebook = %s, instagram = %s, youtube = %s,
+                        exibir_dados = %s
+                    WHERE id = %s
                 """, (
                     nome, nascimento, sexo, criatorio,
                     cep, endereco, numero, complemento,

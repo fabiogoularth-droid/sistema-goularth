@@ -187,3 +187,110 @@
 2026-07-01 09:52:59,661 - INFO - 127.0.0.1 - - [01/Jul/2026 09:52:59] "GET /ranking HTTP/1.1" 200 -
 2026-07-01 09:53:02,017 - INFO - 127.0.0.1 - - [01/Jul/2026 09:53:02] "GET /area-socio HTTP/1.1" 200 -
 2026-07-01 09:53:07,201 - INFO - 127.0.0.1 - - [01/Jul/2026 09:53:07] "GET /area-socio/passaros/novo HTTP/1.1" 200 -
+2026-07-01 15:33:44,932 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.6:5000
+2026-07-01 15:33:44,963 - INFO - [33mPress CTRL+C to quit[0m
+2026-07-01 16:37:48,122 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.6:5000
+2026-07-01 16:37:48,123 - INFO - [33mPress CTRL+C to quit[0m
+2026-07-01 16:38:03,264 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:03] "GET / HTTP/1.1" 200 -
+2026-07-01 16:38:06,498 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:06] "GET /admin/login HTTP/1.1" 200 -
+2026-07-01 16:38:08,767 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:08] "[32mPOST /admin/login HTTP/1.1[0m" 302 -
+2026-07-01 16:38:08,935 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:08] "GET /admin HTTP/1.1" 200 -
+2026-07-01 16:38:12,188 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:12] "GET /admin/festivo/novo HTTP/1.1" 200 -
+2026-07-01 16:38:50,963 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:50] "[32mPOST /admin/festivo/novo HTTP/1.1[0m" 302 -
+2026-07-01 16:38:51,015 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:51] "GET /admin HTTP/1.1" 200 -
+2026-07-01 16:38:59,763 - INFO - 127.0.0.1 - - [01/Jul/2026 16:38:59] "GET /admin/etapa/1 HTTP/1.1" 200 -
+2026-07-01 16:39:08,094 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:08] "GET /area-socio HTTP/1.1" 200 -
+2026-07-01 16:39:12,891 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:12] "GET / HTTP/1.1" 200 -
+2026-07-01 16:39:15,334 - ERROR - Exception on /area-socio/etapa/1 [GET]
+Traceback (most recent call last):
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\Downloads\site_clube\sistema-goularth\app.py", line 49, in wrapper
+    return view(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\Downloads\site_clube\sistema-goularth\app.py", line 1715, in inscrever_na_etapa
+    ja_inscritos_cpf = db.contar_inscricoes_do_cpf_na_etapa(etapa_id, socio["cpf"])
+                                                                      ~~~~~^^^^^^^
+TypeError: 'NoneType' object is not subscriptable
+2026-07-01 16:39:15,433 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:15] "[35m[1mGET /area-socio/etapa/1 HTTP/1.1[0m" 500 -
+2026-07-01 16:39:41,229 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:41] "GET /etapa/1 HTTP/1.1" 200 -
+2026-07-01 16:39:44,103 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:44] "GET /area-socio HTTP/1.1" 200 -
+2026-07-01 16:39:47,727 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:47] "GET /area-socio/passaros/novo HTTP/1.1" 200 -
+2026-07-01 16:39:57,739 - INFO - 127.0.0.1 - - [01/Jul/2026 16:39:57] "POST /area-socio/passaros/novo HTTP/1.1" 200 -
+2026-07-01 16:40:02,614 - INFO - 127.0.0.1 - - [01/Jul/2026 16:40:02] "GET /area-socio HTTP/1.1" 200 -
+2026-07-01 16:40:06,919 - INFO - 127.0.0.1 - - [01/Jul/2026 16:40:06] "[32mGET /logout HTTP/1.1[0m" 302 -
+2026-07-01 16:40:07,241 - INFO - 127.0.0.1 - - [01/Jul/2026 16:40:07] "GET / HTTP/1.1" 200 -
+2026-07-01 16:40:09,729 - INFO - 127.0.0.1 - - [01/Jul/2026 16:40:09] "GET /cadastro HTTP/1.1" 200 -
+2026-07-01 16:40:24,507 - INFO - 127.0.0.1 - - [01/Jul/2026 16:40:24] "POST /cadastro HTTP/1.1" 200 -
+2026-07-01 16:40:37,348 - ERROR - Exception on /cadastro [POST]
+Traceback (most recent call last):
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 1511, in wsgi_app
+    response = self.full_dispatch_request()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 919, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 917, in full_dispatch_request
+    rv = self.dispatch_request()
+         ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\AppData\Local\Programs\Python\Python311\Lib\site-packages\flask\app.py", line 902, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\Downloads\site_clube\sistema-goularth\app.py", line 255, in cadastro
+    socio_id = db.criar_socio(
+               ^^^^^^^^^^^^^^^
+  File "C:\Users\mariana\Downloads\site_clube\sistema-goularth\banco.py", line 1054, in criar_socio
+    cursor = conn.execute("""
+             ^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: 28 values for 27 columns
+2026-07-01 16:40:37,355 - INFO - 127.0.0.1 - - [01/Jul/2026 16:40:37] "[35m[1mPOST /cadastro HTTP/1.1[0m" 500 -
+2026-07-01 16:41:11,359 - INFO - 127.0.0.1 - - [01/Jul/2026 16:41:11] "GET /admin/login HTTP/1.1" 200 -
+2026-07-01 16:41:14,493 - INFO - 127.0.0.1 - - [01/Jul/2026 16:41:14] "[32mPOST /admin/login HTTP/1.1[0m" 302 -
+2026-07-01 16:41:14,512 - INFO - 127.0.0.1 - - [01/Jul/2026 16:41:14] "GET /admin HTTP/1.1" 200 -
+2026-07-01 16:41:19,053 - INFO - 127.0.0.1 - - [01/Jul/2026 16:41:19] "GET /admin/etapa/1 HTTP/1.1" 200 -
+2026-07-01 16:41:23,074 - INFO - 127.0.0.1 - - [01/Jul/2026 16:41:23] "GET /admin/etapa/1/editar HTTP/1.1" 200 -
+2026-07-01 17:10:38,598 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.6:5000
+2026-07-01 17:10:38,614 - INFO - [33mPress CTRL+C to quit[0m
+2026-07-01 17:10:53,223 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.3.6:5000
+2026-07-01 17:10:53,316 - INFO - [33mPress CTRL+C to quit[0m
+2026-07-01 17:11:08,827 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:08] "GET / HTTP/1.1" 200 -
+2026-07-01 17:11:13,645 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:13] "GET /etapa/1 HTTP/1.1" 200 -
+2026-07-01 17:11:16,430 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:16] "GET /ranking HTTP/1.1" 200 -
+2026-07-01 17:11:18,632 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:18] "GET /cadastro HTTP/1.1" 200 -
+2026-07-01 17:11:21,300 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:21] "GET /login HTTP/1.1" 200 -
+2026-07-01 17:11:26,989 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:26] "POST /login HTTP/1.1" 200 -
+2026-07-01 17:11:32,832 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:32] "POST /login HTTP/1.1" 200 -
+2026-07-01 17:11:34,972 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:34] "POST /login HTTP/1.1" 200 -
+2026-07-01 17:11:37,723 - INFO - 127.0.0.1 - - [01/Jul/2026 17:11:37] "GET /cadastro HTTP/1.1" 200 -
+2026-07-01 17:12:06,359 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:06] "[32mPOST /cadastro HTTP/1.1[0m" 302 -
+2026-07-01 17:12:06,562 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:06] "GET /area-socio HTTP/1.1" 200 -
+2026-07-01 17:12:11,049 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:11] "GET / HTTP/1.1" 200 -
+2026-07-01 17:12:13,127 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:13] "GET /area-socio/etapa/1 HTTP/1.1" 200 -
+2026-07-01 17:12:15,831 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:15] "GET /area-socio/passaros/novo HTTP/1.1" 200 -
+2026-07-01 17:12:36,073 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:36] "POST /area-socio/passaros/novo HTTP/1.1" 200 -
+2026-07-01 17:12:40,042 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:40] "GET / HTTP/1.1" 200 -
+2026-07-01 17:12:43,094 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:43] "GET /area-socio/etapa/1 HTTP/1.1" 200 -
+2026-07-01 17:12:50,352 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:50] "[32mPOST /area-socio/etapa/1 HTTP/1.1[0m" 302 -
+2026-07-01 17:12:50,457 - INFO - 127.0.0.1 - - [01/Jul/2026 17:12:50] "GET /area-socio HTTP/1.1" 200 -

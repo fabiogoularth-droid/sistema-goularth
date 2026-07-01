@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card">
+    <h2>👥 Gerenciar Administradores</h2>
+    <p class="text-muted">Lista de todos os administradores do sistema.</p>
+    <a href="{{ url_for('admin_criar') }}" class="btn btn-douardo">+ Criar Novo Admin</a>
+</div>
+
+<div class="card">
+    {% if admins %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Email</th>
+                    <th>Nível</th>
+                    <th>Criado em</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in admins %}
+                <tr>
+                    <td><strong>{{ a.nome }}</strong></td>
+                    <td>{{ a.email }}</td>
+                    <td>
+                        {% if a.nivel == 1 %}
+                            <span class="tag" style="background: #C9980E; color: #fff;">Super Admin</span>
+                        {% elif a.nivel == 2 %}
+                            <span class="tag" style="background: #6c757d; color: #fff;">Admin</span>
+                        {% else %}
+                            <span class="tag" style="background: #17a2b8; color: #fff;">Nível {{ a.nivel }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ a.criado_em[:10] }}</td>
+                    <td>
+                        {% if a.nivel != 1 %}
+                            <form method="POST" action="{{ url_for('admin_alterar_nivel', admin_id=a.id) }}" style="display: inline;">
+                                <select name="nivel" style="padding: 4px 8px; border-radius: 4px; border: 1px solid #ddd;">
+                                    <option value="2" {% if a.nivel == 2 %}selected{% endif %}>Admin</option>
+                                    <option value="3" {% if a.nivel == 3 %}selected{% endif %}>Nível 3</option>
+                                </select>
+                                <button type="submit" class="btn btn-sm" style="background: #17a2b8; color: #fff;">Alterar</button>
+                            </form>
+                            <form method="POST" action="{{ url_for('admin_excluir', admin_id=a.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Tem certeza que deseja excluir este administrador?')">Excluir</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">🔒 Protegido</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="text-muted text-center">Nenhum administrador encontrado.</p>
+    {% endif %}
+</div>
+
+<div class="text-center mt-20">
+    <a href="{{ url_for('admin_dashboard') }}" class="btn btn-outline btn-sm">Voltar</a>
+</div>
+{% endblock %}

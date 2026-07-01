@@ -36,7 +36,7 @@
         <input type="hidden" name="acao" value="criar">
         <button type="submit" class="btn btn-dourado">💾 Criar Backup Agora</button>
     </form>
-    <p class="text-muted" style="margin-top: 10px;">O backup será salvo na pasta <code>backups/</code></p>
+    <p class="text-muted" style="margin-top: 10px;">O backup será salvo na pasta raiz.</p>
 </div>
 
 <div class="card">
@@ -49,7 +49,7 @@
                 <select name="backup_file" required>
                     <option value="">Selecione...</option>
                     {% for b in backups %}
-                        <option value="{{ b }}">{{ b }}</option>
+                        <option value="{{ b.nome }}">{{ b.nome }} ({{ b.tamanho }})</option>
                     {% endfor %}
                 </select>
             </div>
